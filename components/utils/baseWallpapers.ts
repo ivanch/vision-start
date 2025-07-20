@@ -20,6 +20,6 @@ export const baseWallpapers: Wallpaper[] = [
   },
   {
     name: 'Waves',
-    url: 'waves.jpg',
+    url: '/waves.jpg',
   },
 ];
