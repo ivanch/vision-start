@@ -20,6 +20,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
     subtitleSize: currentConfig.subtitleSize || 'medium',
     alignment: currentConfig.alignment || 'middle',
     tileSize: currentConfig.tileSize || 'medium',
+    horizontalAlignment: currentConfig.horizontalAlignment || 'middle',
     wallpaperBlur: currentConfig.wallpaperBlur || 0,
     wallpaperBrightness: currentConfig.wallpaperBrightness || 100,
     wallpaperOpacity: currentConfig.wallpaperOpacity || 100,
@@ -325,6 +326,19 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
                     { value: 'small', label: 'Small' },
                     { value: 'medium', label: 'Medium' },
                     { value: 'large', label: 'Large' },
+                  ]}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="text-slate-300 text-sm font-semibold">Horizontal Alignment</label>
+                <Dropdown
+                  name="horizontalAlignment"
+                  value={config.horizontalAlignment}
+                  onChange={handleChange}
+                  options={[
+                    { value: 'left', label: 'Left' },
+                    { value: 'middle', label: 'Middle' },
+                    { value: 'right', label: 'Right' },
                   ]}
                 />
               </div>

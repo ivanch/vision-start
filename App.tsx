@@ -22,6 +22,7 @@ const defaultConfig = {
   titleSize: 'medium',
   subtitleSize: 'medium',
   alignment: 'middle',
+  horizontalAlignment: 'middle',
   clock: {
     enabled: true,
     size: 'medium',
@@ -235,16 +236,16 @@ const App: React.FC = () => {
     }
   };
 
-  const getTileSizeClass = (size: string) => {
-    switch (size) {
-      case 'small':
-        return 'w-28 h-28';
-      case 'medium':
-        return 'w-32 h-32';
-      case 'large':
-        return 'w-36 h-36';
+  const getHorizontalAlignmentClass = (alignment: string) => {
+    switch (alignment) {
+      case 'left':
+        return 'justify-start';
+      case 'middle':
+        return 'justify-center';
+      case 'right':
+        return 'justify-end';
       default:
-        return 'w-32 h-32';
+        return 'justify-center';
     }
   };
 
@@ -312,8 +313,8 @@ const App: React.FC = () => {
       <div className="flex flex-col gap-8 w-full mt-16">
         {categories.map((category) => (
           <div key={category.id} className="w-full">
-            <div className="flex justify-center items-center mb-4">
-              <h2 className="text-2xl font-bold text-white text-center">{category.name}</h2>
+            <div className={`flex ${getHorizontalAlignmentClass(config.horizontalAlignment)} items-center mb-4 w-full ${config.horizontalAlignment !== 'middle' ? 'px-8' : ''}`}>
+              <h2 className={`text-2xl font-bold text-white ${config.horizontalAlignment === 'left' ? 'text-left' : config.horizontalAlignment === 'right' ? 'text-right' : 'text-center'} ${config.horizontalAlignment !== 'middle' ? 'w-full' : ''}`}>{category.name}</h2>
               {isEditing && (
                 <button
                   onClick={() => {
@@ -326,7 +327,7 @@ const App: React.FC = () => {
                 </button>
               )}
             </div>
-            <div className="flex flex-wrap justify-center gap-6">
+            <div className={`flex flex-wrap ${getHorizontalAlignmentClass(config.horizontalAlignment)} gap-6`}>
               {category.websites.map((website) => (
                 <WebsiteTile
                   key={website.id}
@@ -334,7 +335,7 @@ const App: React.FC = () => {
                   isEditing={isEditing}
                   onEdit={setEditingWebsite}
                   onMove={handleMoveWebsite}
-                  className={getTileSizeClass(config.tileSize)}
+                  tileSize={config.tileSize}
                 />
               ))}
               {isEditing && (
