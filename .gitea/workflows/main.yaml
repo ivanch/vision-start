@@ -1,0 +1,26 @@
+name: Check scripts syntax
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: List files in the repository
+        run: |
+          ls ${{ gitea.workspace }}
+      - name: Install JS dependencies
+        run: |
+          npm install
+      - name: Run scripts
+        run: |
+          bash download-icons.sh
+      - name: Run build
+        run: |
+          npm run build
+      - name: Release zip
+        uses: akkuman/gitea-release-action@v1
+        with:
+          files: |-
+            dist/**
