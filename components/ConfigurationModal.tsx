@@ -1,9 +1,8 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import ToggleSwitch from './ToggleSwitch';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Server, Wallpaper } from '../types';
-import { Trash } from 'lucide-react';
+
 import Dropdown from './Dropdown';
 import { baseWallpapers } from './utils/baseWallpapers';
 
@@ -37,6 +36,8 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
       format: 'h:mm A',
       ...currentConfig.clock,
     },
+    backgroundUrls: currentConfig.backgroundUrls || [],
+    wallpaperFrequency: currentConfig.wallpaperFrequency || '1d',
   });
   const [activeTab, setActiveTab] = useState('general');
   const [newServerName, setNewServerName] = useState('');
@@ -70,7 +71,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
     }, 300); // This duration should match the transition duration
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: string | string[] } }) => {
     const { name, value } = e.target;
     if (name.startsWith('serverWidget.')) {
       const field = name.split('.')[1];
@@ -158,7 +159,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
     const updatedUserWallpapers = [...userWallpapers, newWallpaper];
     setUserWallpapers(updatedUserWallpapers);
     localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
-    setConfig({ ...config, backgroundUrl: newWallpaperUrl });
+    setConfig({ ...config, backgroundUrls: [...config.backgroundUrls, newWallpaperUrl] });
 
     setNewWallpaperName('');
     setNewWallpaperUrl('');
@@ -187,23 +188,20 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
         };
         setUserWallpapers([...updatedUserWallpapers, newWallpaper]);
         localStorage.setItem('userWallpapers', JSON.stringify([...updatedUserWallpapers, newWallpaper]));
-        setConfig({ ...config, backgroundUrl: base64 });
+        setConfig({ ...config, backgroundUrls: [...config.backgroundUrls, base64] });
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleDeleteWallpaper = (wallpaper: Wallpaper) => {
-    const updatedUserWallpapers = userWallpapers.filter(w => w.name !== wallpaper.name);
+    const wallpaperIdentifier = wallpaper.url || wallpaper.base64;
+    const updatedUserWallpapers = userWallpapers.filter(w => (w.url || w.base64) !== wallpaperIdentifier);
     setUserWallpapers(updatedUserWallpapers);
     localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
 
-    if (config.backgroundUrl === (wallpaper.url || wallpaper.base64)) {
-      const nextWallpaper = baseWallpapers[0] || updatedUserWallpapers[0];
-      if (nextWallpaper) {
-        setConfig({ ...config, backgroundUrl: nextWallpaper.url || nextWallpaper.base64 });
-      }
-    }
+    const newBackgroundUrls = config.backgroundUrls.filter((url: string) => url !== wallpaperIdentifier);
+    setConfig({ ...config, backgroundUrls: newBackgroundUrls });
   };
 
   const allWallpapers = [...baseWallpapers, ...userWallpapers];
@@ -350,23 +348,27 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
               <div className="flex items-center justify-between">
                 <label className="text-slate-300 text-sm font-semibold">Background</label>
                 <Dropdown
-                  name="backgroundUrl"
-                  value={config.backgroundUrl}
+                  name="backgroundUrls"
+                  value={config.backgroundUrls}
                   onChange={handleChange}
+                  multiple
                   options={allWallpapers.map(w => ({ 
                     value: w.url || w.base64 || '', 
                     label: (
-                      <div className="flex items-center justify-between">
-                        {w.name}
-                        {!baseWallpapers.includes(w) && (
+                      <div className="flex items-center justify-between w-full">
+                        <span>{w.name}</span>
+                        {!baseWallpapers.find(bw => (bw.url || bw.base64) === (w.url || w.base64)) && (
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteWallpaper(w);
                             }}
-                            className="text-red-500 hover:text-red-400 ml-4"
+                            className="text-red-500 hover:text-red-400 ml-4 p-1 rounded-full flex items-center justify-center"
                           >
-                            <Trash size={16} />
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
+                              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                              <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                            </svg>
                           </button>
                         )}
                       </div>
@@ -374,6 +376,24 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
                   }))}
                 />
               </div>
+              {Array.isArray(config.backgroundUrls) && config.backgroundUrls.length > 1 && (
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-300 text-sm font-semibold">Change Frequency</label>
+                  <Dropdown
+                    name="wallpaperFrequency"
+                    value={config.wallpaperFrequency}
+                    onChange={handleChange}
+                    options={[
+                      { value: '1h', label: '1 hour' },
+                      { value: '3h', label: '3 hours' },
+                      { value: '6h', label: '6 hours' },
+                      { value: '12h', label: '12 hours' },
+                      { value: '1d', label: '1 day' },
+                      { value: '2d', label: '2 days' },
+                    ]}
+                  />
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <label className="text-slate-300 text-sm font-semibold">Wallpaper Blur</label>
                 <div className="flex items-center gap-4">

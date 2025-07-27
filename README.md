@@ -15,3 +15,8 @@
    `npm install`
 2. Run the app:
    `npm run dev`
+
+## to-do
+* [] Multiple wallpapers
+* [x] Remake icons
+* [] Increase offline compatibility

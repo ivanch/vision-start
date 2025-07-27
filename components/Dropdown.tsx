@@ -2,16 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 
 interface DropdownProps {
   options: { value: string; label: string }[];
-  value: string;
-  onChange: (e: { target: { name: string; value: string } }) => void;
+  value: string | string[];
+  onChange: (e: { target: { name: string; value: string | string[] } }) => void;
   name?: string;
+  multiple?: boolean;
 }
 
-const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, ...rest }) => {
+const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, multiple = false, ...rest }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const selectedOptionLabel = options.find(option => option.value === value)?.label || '';
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -26,14 +25,46 @@ const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, ...
   }, []);
 
   const handleOptionClick = (optionValue: string) => {
+    let newValue: string | string[];
+    if (multiple) {
+      const currentValues = Array.isArray(value) ? value : [];
+      if (currentValues.includes(optionValue)) {
+        newValue = currentValues.filter((v) => v !== optionValue);
+      } else {
+        newValue = [...currentValues, optionValue];
+      }
+    } else {
+      newValue = optionValue;
+      setIsOpen(false);
+    }
+
     const syntheticEvent = {
       target: {
         name: name || '',
-        value: optionValue,
+        value: newValue,
       },
     };
-    onChange(syntheticEvent);
-    setIsOpen(false);
+    onChange(syntheticEvent as any);
+  };
+
+  const selectedOptionLabel = (() => {
+    if (multiple) {
+      if (Array.isArray(value) && value.length > 0) {
+        if (value.length === 1) {
+          return options.find((o) => o.value === value[0])?.label || '';
+        }
+        return `${value.length} selected`;
+      }
+      return 'Select...';
+    }
+    return options.find((option) => option.value === value)?.label || 'Select...';
+  })();
+
+  const isSelected = (optionValue: string) => {
+    if (multiple && Array.isArray(value)) {
+      return value.includes(optionValue);
+    }
+    return optionValue === value;
   };
 
   return (
@@ -72,12 +103,13 @@ const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, ...
               key={option.value}
               onClick={() => handleOptionClick(option.value)}
               className={`h-10 px-3 text-white cursor-pointer transition-all duration-150 ease-in-out flex items-center
-                ${option.value === value 
-                  ? 'bg-cyan-500/20 text-cyan-300' 
-                  : 'hover:bg-white/20 hover:text-white hover:shadow-lg'
+                ${
+                  isSelected(option.value)
+                    ? 'bg-cyan-500/20 text-cyan-300'
+                    : 'hover:bg-white/20 hover:text-white hover:shadow-lg'
                 }`}
               role="option"
-              aria-selected={option.value === value}
+              aria-selected={isSelected(option.value)}
             >
               <span className="truncate">{option.label}</span>
             </li>
@@ -86,7 +118,7 @@ const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, ...
       )}
 
       {/* Hidden input to mimic native select behavior for forms */}
-      {name && <input type="hidden" name={name} value={value} />}
+      {name && !multiple && <input type="hidden" name={name} value={value as string} />}
     </div>
   );
 };

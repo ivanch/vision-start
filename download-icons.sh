@@ -1,0 +1,1 @@
+wget https://raw.githubusercontent.com/homarr-labs/dashboard-icons/refs/heads/main/metadata.json -O public/icon-metadata.json
