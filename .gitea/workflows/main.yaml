@@ -2,14 +2,14 @@ name: Check scripts syntax
 on: [push]
 
 jobs:
-  build:
+  build-release:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-      - name: List files in the repository
+      - name: Setup zip
         run: |
-          ls ${{ gitea.workspace }}
+          sudo apt-get install zip -y
       - name: Install JS dependencies
         run: |
           npm install
@@ -19,8 +19,11 @@ jobs:
       - name: Run build
         run: |
           npm run build
+          zip -r vision-start.zip dist
       - name: Release zip
         uses: akkuman/gitea-release-action@v1
         with:
+          name: latest
+          tag_name: latest
           files: |-
-            dist/**
+            vision-start.zip
