@@ -94,7 +94,8 @@ const App: React.FC = () => {
     const updateWallpaper = () => {
       const availableWallpapers = allWallpapers.filter(w => config.backgroundUrls.includes(w.url || w.base64));
       if (availableWallpapers.length > 0) {
-        const currentIndex = availableWallpapers.findIndex(w => (w.url || w.base64) === wallpaperState.current);
+        const currentWallpaperFromState = allWallpapers.find(w => w.name === wallpaperState.current);
+        const currentIndex = currentWallpaperFromState ? availableWallpapers.findIndex(w => w.name === currentWallpaperFromState.name) : -1;
         const nextIndex = (currentIndex + 1) % availableWallpapers.length;
         const newWallpaper = availableWallpapers[nextIndex];
         const newWallpaperUrl = newWallpaper.url || newWallpaper.base64;
@@ -102,24 +103,20 @@ const App: React.FC = () => {
         localStorage.setItem('wallpaperState', JSON.stringify({ current: newWallpaper.name, lastChanged: new Date().toISOString() }));
       } else {
         setCurrentWallpaper('');
+        localStorage.removeItem('wallpaperState');
       }
     };
 
-    if (Date.now() - lastChanged > frequency) {
+    const currentWallpaperDetails = allWallpapers.find(w => w.name === wallpaperState.current);
+    const isCurrentWallpaperValid = currentWallpaperDetails && config.backgroundUrls.includes(currentWallpaperDetails.url || currentWallpaperDetails.base64 || '');
+
+    if (!isCurrentWallpaperValid || Date.now() - lastChanged > frequency) {
       updateWallpaper();
+    } else if (currentWallpaperDetails) {
+      setCurrentWallpaper(currentWallpaperDetails.url || currentWallpaperDetails.base64 || '');
     } else {
-      const currentWallpaperName = wallpaperState.current;
-      const wallpaper = allWallpapers.find(w => w.name === currentWallpaperName);
-      if (wallpaper) {
-        setCurrentWallpaper(wallpaper.url || wallpaper.base64 || '');
-      } else {
-        const firstWallpaperUrl = config.backgroundUrls[0] || '';
-        const firstWallpaper = allWallpapers.find(w => (w.url || w.base64) === firstWallpaperUrl);
-        setCurrentWallpaper(firstWallpaperUrl);
-        if (firstWallpaper) {
-          localStorage.setItem('wallpaperState', JSON.stringify({ current: firstWallpaper.name, lastChanged: new Date().toISOString() }));
-        }
-      }
+      // Fallback for when there's no valid wallpaper state
+      updateWallpaper();
     }
   }, [config.backgroundUrls, config.wallpaperFrequency, allWallpapers]);
 
@@ -131,6 +128,10 @@ const App: React.FC = () => {
   const handleSaveConfig = (newConfig: any) => {
     setConfig(newConfig);
     setIsConfigModalOpen(false);
+  };
+
+  const handleWallpaperChange = (newConfig: Partial<Config>) => {
+    setConfig(prev => ({ ...prev, ...newConfig }));
   };
 
   const handleSaveWebsite = (website: Partial<Website>) => {
@@ -341,6 +342,7 @@ const App: React.FC = () => {
           currentConfig={config}
           onClose={() => setIsConfigModalOpen(false)} 
           onSave={handleSaveConfig} 
+          onWallpaperChange={handleWallpaperChange}
         />
       )}
     </main>

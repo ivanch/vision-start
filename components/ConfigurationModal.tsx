@@ -10,9 +10,10 @@ interface ConfigurationModalProps {
   onClose: () => void;
   onSave: (config: any) => void;
   currentConfig: any;
+  onWallpaperChange: (newConfig: Partial<any>) => void;
 }
 
-const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave, currentConfig }) => {
+const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave, currentConfig, onWallpaperChange }) => {
   const [config, setConfig] = useState({
     ...currentConfig,
     titleSize: currentConfig.titleSize || 'medium',
@@ -47,6 +48,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
   const [userWallpapers, setUserWallpapers] = useState<Wallpaper[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isSaving = useRef(false);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -62,6 +64,14 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
       setIsVisible(true);
     }, 10);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (!isSaving.current) {
+        onWallpaperChange({ backgroundUrls: currentConfig.backgroundUrls });
+      }
+    };
   }, []);
 
   const handleClose = () => {
@@ -89,6 +99,10 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
       setConfig({ ...config, [name]: value });
     }
   };
+
+  useEffect(() => {
+    onWallpaperChange({ backgroundUrls: config.backgroundUrls });
+  }, [config.backgroundUrls]);
 
   const handleClockToggleChange = (checked: boolean) => {
     setConfig({ ...config, clock: { ...config.clock, enabled: checked } });
@@ -201,7 +215,10 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
     localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
 
     const newBackgroundUrls = config.backgroundUrls.filter((url: string) => url !== wallpaperIdentifier);
-    setConfig({ ...config, backgroundUrls: newBackgroundUrls });
+    
+    const newConfig = { ...config, backgroundUrls: newBackgroundUrls };
+    setConfig(newConfig);
+    onWallpaperChange({ backgroundUrls: newBackgroundUrls });
   };
 
   const allWallpapers = [...baseWallpapers, ...userWallpapers];
@@ -629,7 +646,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
         </div>
         <div className="p-8 border-t border-white/10">
             <div className="flex justify-end gap-4">
-                <button onClick={() => onSave(config)} className="bg-green-500 hover:bg-green-400 text-white font-bold py-2 px-6 rounded-lg">
+                <button onClick={() => { isSaving.current = true; onSave(config); }} className="bg-green-500 hover:bg-green-400 text-white font-bold py-2 px-6 rounded-lg">
                     Save & Close
                 </button>
                 <button onClick={handleClose} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg">
