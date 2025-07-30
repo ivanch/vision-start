@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - main
-  tag:
+    tags:
+      - v*
 
 jobs:
   build:
