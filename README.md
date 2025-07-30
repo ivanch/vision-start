@@ -7,6 +7,17 @@
 ![Editing page with Abstract Red background](screenshots/editing-abstract-red.png)
 ![Configuration Tab opened](screenshots/configuration-abstract-red.png)
 
+## Installing
+
+Vision Start is not yet available on Chrome Web Store, but it can be installed manually:
+1. Go to https://git.ivanch.me/ivanch/vision-start/releases/latest
+2. Download the latest `vision-start-[version].zip` file
+3. Extract the zip file, you will have a `vision-start` folder
+4. Go to chrome://extensions/
+5. Enable "Developer mode" in the top right corner
+6. Click on "Load unpacked" and select the `vision-start` folder you extracted in step 3
+7. The extension should now be installed! Just open a new tab to see it in action.
+
 ## Backgrounds
 
 It comes with a selection of some nice pre-defined backgrounds. You can also upload up to one image to it.

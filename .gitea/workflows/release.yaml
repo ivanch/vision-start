@@ -6,13 +6,15 @@ on:
       - v*
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      zip-file: vision-start-${{ gitea.ref_name }}.zip
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
-      - name: Setup zip
-        run: sudo apt-get install zip -y
+      - name: Setup required tools
+        run: sudo apt-get install zip jq curl -y
       - name: Install JS dependencies
         run: npm install
       - name: Run build
@@ -24,9 +26,65 @@ jobs:
           mv manifest.json vision-start/
       - name: Create zip archive
         run: zip -r vision-start-${{ gitea.ref_name }}.zip vision-start
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-zip
+          path: vision-start-${{ gitea.ref_name }}.zip
+
+  virus-total-check:
+    runs-on: ubuntu-latest
+    needs: build
+    outputs:
+      analysis-url: ${{ steps.vt-check.outputs.analysis-url }}
+      detection-ratio: ${{ steps.vt-check.outputs.detection-ratio }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Setup required tools
+        run: sudo apt-get install jq curl -y
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-zip
+      - name: Run VirusTotal check
+        id: vt-check
+        env:
+          virustotal_apikey: ${{ secrets.VIRUSTOTAL_APIKEY }}
+          VIRUS_TOTAL_FILE: vision-start-${{ gitea.ref_name }}.zip
+        run: |
+          # Run the VirusTotal check script and capture output
+          bash scripts/check_virustotal.sh > vt_output.txt 2>&1
+          
+          # Extract analysis URL and detection ratio from output
+          ANALYSIS_URL=$(grep "Analysis URL:" vt_output.txt | cut -d' ' -f3- || echo "Not available")
+          DETECTION_RATIO=$(grep "Detection ratio:" vt_output.txt | cut -d' ' -f3- || echo "Not available")
+          
+          # Set outputs for next job
+          echo "analysis-url=$ANALYSIS_URL" >> $GITEA_OUTPUT
+          echo "detection-ratio=$DETECTION_RATIO" >> $GITEA_OUTPUT
+          
+          # Display the full output
+          cat vt_output.txt
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build, virus-total-check]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-zip
       - name: Release zip
         uses: akkuman/gitea-release-action@v1
         with:
+          body: |
+            This is the release for version ${{ gitea.ref_name }}.
+            
+            **Virus Total Analysis URL:** ${{ needs.virus-total-check.outputs.analysis-url }}
+            **Virus Total Detection Ratio:** ${{ needs.virus-total-check.outputs.detection-ratio }}
           name: ${{ gitea.ref_name }}
           tag_name: ${{ gitea.ref_name }}
           files: vision-start-${{ gitea.ref_name }}.zip
