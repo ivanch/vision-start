@@ -7,7 +7,6 @@ on:
 
 jobs:
   release:
-    if: gitea.event_name == 'tag'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
