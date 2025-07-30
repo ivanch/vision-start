@@ -1,27 +1,57 @@
 # Vision Start
-#### Small startpage 
+#### A glassmorphism-looking like, modern and customizable startpage built with React.
 
-## Predefined themes
+## Screenshots
 
-1. Abstract
-2. Aurora (Vista vibes)
-3. Mountain
+![Vision Start with the Dark background](screenshots/dark-page.png)
+![Editing page with Abstract Red background](screenshots/editing-abstract-red.png)
+![Configuration Tab opened](screenshots/configuration-abstract-red.png)
 
-## Run Locally
+## Backgrounds
 
-**Prerequisites:**  Node.js
+It comes with a selection of some nice pre-defined backgrounds. You can also upload up to one image to it.
 
-1. Install dependencies:
-   `npm install`
-2. Run the app:
-   `npm run dev`
+* **Abstract**
+* **Abstract Red**
+* **Beach**
+* **Dark**
+* **Mountain**
+* **Waves**
 
-## to-do
+## Features
+
+* **Customizable Website Tiles:** Add, edit, and organize your favorite websites for quick access.
+* **Elegant Clock:** A clock because all startpages have one.
+* **Server Status Widgets:** Monitor the status of services directly from the startpage.
+* **Glassmorphism UI:** A modern and stylish interface with a frosted glass effect.
+* **Icon Library:** It uses the [Dashboard Icon library](https://dashboardicons.com/) for a better look and feel. It also supports auto-fetch for some websites.
+* **Future**: a long to do list :(
+
+## Running Locally
+
+**Prerequisites:** Node.js
+
+1.  Clone the repository:
+```bash
+git clone https://gitea.com/ivan/vision-start.git
+cd vision-start
+```
+2.  Install dependencies:
+```bash
+npm install
+```
+3.  Run the development server:
+```bash
+npm run dev
+```
+
+## To-do
+
 * [x] Multiple Wallpapers
 * [x] Remake icons
-* [] Increase offline compatibility
-  * Use chrome.storage.local for wallpapers
-  * Use chrome.storage.local for some logos
+* [] Increase offline compatibility (might not be possible)
+  * Use chrome.storage.local for user wallpapers -- this one is
+  * Use chrome.storage.local for some logos -- a bit hard
     * Some logos have CORS enabled, we can add `"<all_urls>"` to the manifest.json file and cache them on storage local
 * Dynamic Weather Widget
   * A box with information about the current weather, with manual entry on the location

@@ -1,29 +1,45 @@
-name: Check scripts syntax
-on: [push]
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  tag:
 
 jobs:
-  build-release:
+  build:
+    if: gitea.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Install JS dependencies
+        run: npm install
+      - name: Run build
+        run: npm run build
+
+  release:
+    if: gitea.event_name == 'tag'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: Setup zip
-        run: |
-          sudo apt-get install zip -y
+        run: sudo apt-get install zip -y
       - name: Install JS dependencies
-        run: |
-          npm install
-      - name: Run scripts
-        run: |
-          bash download-icons.sh
+        run: npm install
       - name: Run build
-        run: |
-          npm run build
-          zip -r vision-start.zip dist
+        run: npm run build
+      - name: Prepare release
+        run: | 
+          bash scripts/prepare_release.sh
+          mv dist vision-start/
+          mv manifest.json vision-start/
+      - name: Create zip archive
+        run: zip -r vision-start-${{ gitea.ref_name }}.zip vision-start
       - name: Release zip
         uses: akkuman/gitea-release-action@v1
         with:
-          name: latest
-          tag_name: latest
-          files: |-
-            vision-start.zip
+          name: ${{ gitea.ref_name }}
+          tag_name: ${{ gitea.ref_name }}
+          files: vision-start-${{ gitea.ref_name }}.zip

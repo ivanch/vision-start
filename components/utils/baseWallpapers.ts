@@ -15,11 +15,15 @@ export const baseWallpapers: Wallpaper[] = [
     url: 'https://wallpapershome.com/images/pages/pic_h/615.jpg'
   },
   {
+    name: 'Dark',
+    url: 'https://i.imgur.com/qHlRO0s.jpeg'
+  },
+  {
     name: 'Mountain',
     url: 'https://i.imgur.com/yHfOZUd.jpeg'
   },
   {
     name: 'Waves',
-    url: '/waves.jpg',
+    url: 'https://i.imgur.com/E8uxZ7R.png',
   },
 ];
