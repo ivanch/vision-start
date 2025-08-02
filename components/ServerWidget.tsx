@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Server } from '../types';
 import ping from './utils/jsping.js';
 

@@ -27,7 +27,7 @@ export interface Wallpaper {
 export interface Config {
   title: string;
   subtitle: string;
-  backgroundUrls: string[];
+  currentWallpapers: string[];
   wallpaperFrequency: string;
   wallpaperBlur: number;
   wallpaperBrightness: number;

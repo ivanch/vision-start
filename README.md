@@ -18,17 +18,6 @@ Vision Start is not yet available on Chrome Web Store, but it can be installed m
 6. Click on "Load unpacked" and select the `vision-start` folder you extracted in step 3
 7. The extension should now be installed! Just open a new tab to see it in action.
 
-## Backgrounds
-
-It comes with a selection of some nice pre-defined backgrounds. You can also upload up to one image to it.
-
-* **Abstract**
-* **Abstract Red**
-* **Beach**
-* **Dark**
-* **Mountain**
-* **Waves**
-
 ## Features
 
 * **Customizable Website Tiles:** Add, edit, and organize your favorite websites for quick access.
@@ -37,6 +26,12 @@ It comes with a selection of some nice pre-defined backgrounds. You can also upl
 * **Glassmorphism UI:** A modern and stylish interface with a frosted glass effect.
 * **Icon Library:** It uses the [Dashboard Icon library](https://dashboardicons.com/) for a better look and feel. It also supports auto-fetch for some websites.
 * **Future**: a long to do list :(
+
+## Backgrounds
+
+It comes with a selection of some nice pre-defined backgrounds: **Abstract**, **Abstract Red**, **Beach**, **Dark**, **Mountain**, **Waves**.
+
+You can also upload your own images on it (or fetch it from the web).
 
 ## Running Locally
 

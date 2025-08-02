@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Category } from '../types';
 
 interface CategoryEditModalProps {
@@ -11,10 +11,6 @@ interface CategoryEditModalProps {
 
 const CategoryEditModal: React.FC<CategoryEditModalProps> = ({ category, edit, onClose, onSave, onDelete }) => {
   const [name, setName] = useState(category ? category.name : '');
-
-  const handleSave = () => {
-    onSave(name);
-  };
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {

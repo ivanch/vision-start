@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Website } from '../types';
 
-
 interface WebsiteTileProps {
   website: Website;
   isEditing: boolean;
@@ -28,9 +27,9 @@ const getTileSizeClass = (size: string | undefined) => {
 const getIconPixelSize = (size: string | undefined): number => {
   switch (size) {
     case 'small':
-      return 32;
+      return 34;
     case 'medium':
-      return 40;
+      return 42;
     case 'large':
       return 48;
     default:
@@ -92,7 +91,7 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
         )}
         <div className={`flex items-center transition-all duration-300 ease-in ${isLoading ? 'mt-18' : 'flex-col'} ${isLoading ? 'gap-2' : ''}`}>
           <div className={`transition-all duration-300 ease-in ${isLoading ? iconSizeLoadingClass : iconSizeClass}`}>
-            <img src={website.icon} alt={`${website.name} icon`} className="object-contain" />
+            <img src={website.icon} alt={`${website.name} icon`} className={`object-contain w-full h-full`} />
           </div>
           <span className={`text-slate-100 font-medium text-base tracking-wide text-center transition-all duration-300 ease-in ${isLoading ? 'text-sm' : ''}`}>
             {website.name}

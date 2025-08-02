@@ -5,6 +5,7 @@ import { Server, Wallpaper } from '../types';
 
 import Dropdown from './Dropdown';
 import { baseWallpapers } from './utils/baseWallpapers';
+import { addWallpaperToChromeStorageLocal, removeWallpaperFromChromeStorageLocal, checkChromeStorageLocalAvailable } from './utils/StorageLocalManager';
 
 interface ConfigurationModalProps {
   onClose: () => void;
@@ -37,7 +38,9 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
       format: 'h:mm A',
       ...currentConfig.clock,
     },
-    backgroundUrls: currentConfig.backgroundUrls || [],
+    currentWallpapers: Array.isArray(currentConfig.currentWallpapers)
+      ? currentConfig.currentWallpapers.filter((name: string) => typeof name === 'string')
+      : [],
     wallpaperFrequency: currentConfig.wallpaperFrequency || '1d',
   });
   const [activeTab, setActiveTab] = useState('general');
@@ -46,12 +49,14 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
   const [newWallpaperName, setNewWallpaperName] = useState('');
   const [newWallpaperUrl, setNewWallpaperUrl] = useState('');
   const [userWallpapers, setUserWallpapers] = useState<Wallpaper[]>([]);
+  const [chromeStorageAvailable, setChromeStorageAvailable] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isSaving = useRef(false);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    setChromeStorageAvailable(checkChromeStorageLocalAvailable());
     const storedUserWallpapers = localStorage.getItem('userWallpapers');
     if (storedUserWallpapers) {
       setUserWallpapers(JSON.parse(storedUserWallpapers));
@@ -59,7 +64,6 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
   }, []);
 
   useEffect(() => {
-    // A small timeout to allow the component to mount before starting the transition
     const timer = setTimeout(() => {
       setIsVisible(true);
     }, 10);
@@ -69,7 +73,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
   useEffect(() => {
     return () => {
       if (!isSaving.current) {
-        onWallpaperChange({ backgroundUrls: currentConfig.backgroundUrls });
+        onWallpaperChange({ currentWallpapers: currentConfig.currentWallpapers });
       }
     };
   }, []);
@@ -78,12 +82,15 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
     setIsVisible(false);
     setTimeout(() => {
       onClose();
-    }, 300); // This duration should match the transition duration
+    }, 300);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: string | string[] } }) => {
     const { name, value } = e.target;
-    if (name.startsWith('serverWidget.')) {
+    if (name === 'currentWallpapers') {
+      const wallpaperNames = Array.isArray(value) ? value : [value];
+      setConfig({ ...config, currentWallpapers: wallpaperNames });
+    } else if (name.startsWith('serverWidget.')) {
       const field = name.split('.')[1];
       setConfig({
         ...config,
@@ -101,8 +108,13 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
   };
 
   useEffect(() => {
-    onWallpaperChange({ backgroundUrls: config.backgroundUrls });
-  }, [config.backgroundUrls]);
+    onWallpaperChange({ currentWallpapers: config.currentWallpapers });
+    // Set wallpaperState in localStorage with lastWallpaperChange datetime
+    localStorage.setItem('wallpaperState', JSON.stringify({
+      lastWallpaperChange: new Date().toISOString(),
+      currentIndex: 0,
+    }));
+  }, [config.currentWallpapers]);
 
   const handleClockToggleChange = (checked: boolean) => {
     setConfig({ ...config, clock: { ...config.clock, enabled: checked } });
@@ -162,21 +174,21 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
     });
   };
 
-  const handleAddWallpaper = () => {
-    if (newWallpaperName.trim() === '' || newWallpaperUrl.trim() === '') return;
-
-    const newWallpaper: Wallpaper = {
-      name: newWallpaperName,
-      url: newWallpaperUrl,
-    };
-
-    const updatedUserWallpapers = [...userWallpapers, newWallpaper];
-    setUserWallpapers(updatedUserWallpapers);
-    localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
-    setConfig({ ...config, backgroundUrls: [...config.backgroundUrls, newWallpaperUrl] });
-
-    setNewWallpaperName('');
-    setNewWallpaperUrl('');
+  const handleAddWallpaper = async () => {
+    if (newWallpaperUrl.trim() === '') return;
+    try {
+      const finalName = await addWallpaperToChromeStorageLocal(newWallpaperName, newWallpaperUrl);
+      const newWallpaper: Wallpaper = { name: finalName };
+      const updatedUserWallpapers = [...userWallpapers, newWallpaper];
+      setUserWallpapers(updatedUserWallpapers);
+      localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
+      setConfig({ ...config, currentWallpapers: [...config.currentWallpapers, newWallpaper.name] });
+      setNewWallpaperName('');
+      setNewWallpaperUrl('');
+    } catch (error) {
+      alert('Error adding wallpaper. Please check the URL and try again.');
+      console.error(error);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,39 +198,43 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
         alert('File size exceeds 4MB. Please choose a smaller file.');
         return;
       }
-
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         const base64 = reader.result as string;
         if (base64.length > 4.5 * 1024 * 1024) {
           alert('The uploaded image is too large. Please choose a smaller file.');
           return;
         }
-
-        const updatedUserWallpapers = userWallpapers.filter(w => !w.base64);
-        const newWallpaper: Wallpaper = {
-          name: file.name,
-          base64,
-        };
-        setUserWallpapers([...updatedUserWallpapers, newWallpaper]);
-        localStorage.setItem('userWallpapers', JSON.stringify([...updatedUserWallpapers, newWallpaper]));
-        setConfig({ ...config, backgroundUrls: [...config.backgroundUrls, base64] });
+        try {
+          const finalName = await addWallpaperToChromeStorageLocal(file.name, base64);
+          const newWallpaper: Wallpaper = { name: finalName };
+          const updatedUserWallpapers = [...userWallpapers, newWallpaper];
+          setUserWallpapers(updatedUserWallpapers);
+          localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
+          setConfig({ ...config, currentWallpapers: [...config.currentWallpapers, newWallpaper.name] });
+        } catch (error) {
+          alert('Error adding wallpaper. Please try again.');
+          console.error(error);
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleDeleteWallpaper = (wallpaper: Wallpaper) => {
-    const wallpaperIdentifier = wallpaper.url || wallpaper.base64;
-    const updatedUserWallpapers = userWallpapers.filter(w => (w.url || w.base64) !== wallpaperIdentifier);
-    setUserWallpapers(updatedUserWallpapers);
-    localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
-
-    const newBackgroundUrls = config.backgroundUrls.filter((url: string) => url !== wallpaperIdentifier);
-    
-    const newConfig = { ...config, backgroundUrls: newBackgroundUrls };
-    setConfig(newConfig);
-    onWallpaperChange({ backgroundUrls: newBackgroundUrls });
+  const handleDeleteUserWallpaper = async (wallpaper: Wallpaper) => {
+    try {
+      await removeWallpaperFromChromeStorageLocal(wallpaper.name);
+      const updatedUserWallpapers = userWallpapers.filter(w => w.name !== wallpaper.name);
+      setUserWallpapers(updatedUserWallpapers);
+      localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
+      const newcurrentWallpapers = config.currentWallpapers.filter((name: string) => name !== wallpaper.name);
+      const newConfig = { ...config, currentWallpapers: newcurrentWallpapers };
+      setConfig(newConfig);
+      onWallpaperChange({ currentWallpapers: newcurrentWallpapers });
+    } catch (error) {
+      alert('Error deleting wallpaper. Please try again.');
+      console.error(error);
+    }
   };
 
   const allWallpapers = [...baseWallpapers, ...userWallpapers];
@@ -365,35 +381,17 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
               <div className="flex items-center justify-between">
                 <label className="text-slate-300 text-sm font-semibold">Background</label>
                 <Dropdown
-                  name="backgroundUrls"
-                  value={config.backgroundUrls}
+                  name="currentWallpapers"
+                  value={config.currentWallpapers}
                   onChange={handleChange}
                   multiple
-                  options={allWallpapers.map(w => ({ 
-                    value: w.url || w.base64 || '', 
-                    label: (
-                      <div className="flex items-center justify-between w-full">
-                        <span>{w.name}</span>
-                        {!baseWallpapers.find(bw => (bw.url || bw.base64) === (w.url || w.base64)) && (
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteWallpaper(w);
-                            }}
-                            className="text-red-500 hover:text-red-400 ml-4 p-1 rounded-full flex items-center justify-center"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
-                              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                              <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    )
+                  options={allWallpapers.map(w => ({
+                    value: w.name,
+                    label: w.name
                   }))}
                 />
               </div>
-              {Array.isArray(config.backgroundUrls) && config.backgroundUrls.length > 1 && (
+              {Array.isArray(config.currentWallpapers) && config.currentWallpapers.length > 1 && (
                 <div className="flex items-center justify-between">
                   <label className="text-slate-300 text-sm font-semibold">Change Frequency</label>
                   <Dropdown
@@ -456,48 +454,71 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
                   <span>{config.wallpaperOpacity}%</span>
                 </div>
               </div>
-              <div>
-                <h3 className="text-slate-300 text-sm font-semibold mb-2">Add New Wallpaper</h3>
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="text"
-                    placeholder="Wallpaper Name"
-                    value={newWallpaperName}
-                    onChange={(e) => setNewWallpaperName(e.target.value)}
-                    className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                  />
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Image URL"
-                      value={newWallpaperUrl}
-                      onChange={(e) => setNewWallpaperUrl(e.target.value)}
-                      className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                    />
-                    <button
-                      onClick={handleAddWallpaper}
-                      className="bg-cyan-500 hover:bg-cyan-400 text-white font-bold py-2 px-4 rounded-lg"
-                    >
-                      Add
-                    </button>
+              {chromeStorageAvailable && (
+                <>
+                  <div>
+                    <h3 className="text-slate-300 text-sm font-semibold mb-2">User Wallpapers</h3>
+                    <div className="flex flex-col gap-2">
+                      {userWallpapers.map((wallpaper) => (
+                        <div key={wallpaper.name} className="flex items-center justify-between bg-white/10 p-2 rounded-lg">
+                          <span className="truncate">{wallpaper.name}</span>
+                          <button
+                            onClick={() => handleDeleteUserWallpaper(wallpaper)}
+                            className="text-red-500 hover:text-red-400"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
+                              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                              <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-center w-full">
-                    <label
-                      htmlFor="file-upload"
-                      className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-white/5 border-white/20 hover:bg-white/10"
-                    >
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <svg className="w-8 h-8 mb-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                        </svg>
-                        <p className="mb-2 text-sm text-gray-400"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                        <p className="text-xs text-gray-400">PNG, JPG, WEBP, etc.</p>
+                  <div>
+                    <h3 className="text-slate-300 text-sm font-semibold mb-2">Add New Wallpaper</h3>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="text"
+                        placeholder="Wallpaper Name (optional for URLs)"
+                        value={newWallpaperName}
+                        onChange={(e) => setNewWallpaperName(e.target.value)}
+                        className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Image URL"
+                          value={newWallpaperUrl}
+                          onChange={(e) => setNewWallpaperUrl(e.target.value)}
+                          className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                        />
+                        <button
+                          onClick={handleAddWallpaper}
+                          className="bg-cyan-500 hover:bg-cyan-400 text-white font-bold py-2 px-4 rounded-lg"
+                        >
+                          Add
+                        </button>
                       </div>
-                      <input id="file-upload" type="file" className="hidden" onChange={handleFileUpload} ref={fileInputRef} />
-                    </label>
+                      <div className="flex items-center justify-center w-full">
+                        <label
+                          htmlFor="file-upload"
+                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-white/5 border-white/20 hover:bg-white/10"
+                        >
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <svg className="w-8 h-8 mb-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                              <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                            </svg>
+                            <p className="mb-2 text-sm text-gray-400"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                            <p className="text-xs text-gray-400">PNG, JPG, WEBP, etc.</p>
+                          </div>
+                          <input id="file-upload" type="file" className="hidden" onChange={handleFileUpload} ref={fileInputRef} />
+                        </label>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </div>
           )}
 

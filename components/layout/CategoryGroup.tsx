@@ -1,4 +1,3 @@
-import React from 'react';
 import WebsiteTile from '../WebsiteTile';
 import { Category, Website } from '../../types';
 

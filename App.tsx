@@ -1,21 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import ConfigurationModal from './components/ConfigurationModal';
 import ServerWidget from './components/ServerWidget';
 import { DEFAULT_CATEGORIES } from './constants';
-import { Category, Website, Wallpaper, Config } from './types';
+import { Category, Website, Config } from './types';
 import WebsiteEditModal from './components/WebsiteEditModal';
 import CategoryEditModal from './components/CategoryEditModal';
 import Header from './components/layout/Header';
 import EditButton from './components/layout/EditButton';
 import ConfigurationButton from './components/layout/ConfigurationButton';
 import CategoryGroup from './components/layout/CategoryGroup';
-
-import { baseWallpapers } from './components/utils/baseWallpapers';
+import Wallpaper from './components/Wallpaper';
 
 const defaultConfig: Config = {
   title: 'Vision Start',
   subtitle: 'Your personal portal to the web.',
-  backgroundUrls: ['https://i.imgur.com/C6ynAtX.jpeg'],
+  currentWallpapers: ['Abstract'],
   wallpaperFrequency: '1d',
   wallpaperBlur: 0,
   wallpaperBrightness: 100,
@@ -60,9 +59,6 @@ const App: React.FC = () => {
       const storedConfig = localStorage.getItem('config');
       if (storedConfig) {
         const parsedConfig = JSON.parse(storedConfig);
-        if (!parsedConfig.backgroundUrls) {
-          parsedConfig.backgroundUrls = [parsedConfig.backgroundUrl].filter(Boolean);
-        }
         return { ...defaultConfig, ...parsedConfig };
       }
     } catch (error) {
@@ -70,62 +66,12 @@ const App: React.FC = () => {
     }
     return { ...defaultConfig };
   });
-  const [userWallpapers, setUserWallpapers] = useState<Wallpaper[]>(() => {
-    const storedUserWallpapers = localStorage.getItem('userWallpapers');
-    return storedUserWallpapers ? JSON.parse(storedUserWallpapers) : [];
-  });
-  const [currentWallpaper, setCurrentWallpaper] = useState<string>('');
-
-  const allWallpapers = [...baseWallpapers, ...userWallpapers];
 
   useEffect(() => {
-    const getFrequencyInMs = (frequency: string) => {
-      const value = parseInt(frequency.slice(0, -1));
-      const unit = frequency.slice(-1);
-      if (unit === 'h') return value * 60 * 60 * 1000;
-      if (unit === 'd') return value * 24 * 60 * 60 * 1000;
-      return 24 * 60 * 60 * 1000; // Default to 1 day
-    };
-
-    const wallpaperState = JSON.parse(localStorage.getItem('wallpaperState') || '{}');
-    const lastChanged = wallpaperState.lastChanged ? new Date(wallpaperState.lastChanged).getTime() : 0;
-    const frequency = getFrequencyInMs(config.wallpaperFrequency);
-
-    const updateWallpaper = () => {
-      const availableWallpapers = allWallpapers.filter(w => config.backgroundUrls.includes(w.url || w.base64));
-      if (availableWallpapers.length > 0) {
-        const currentWallpaperFromState = allWallpapers.find(w => w.name === wallpaperState.current);
-        const currentIndex = currentWallpaperFromState ? availableWallpapers.findIndex(w => w.name === currentWallpaperFromState.name) : -1;
-        const nextIndex = (currentIndex + 1) % availableWallpapers.length;
-        const newWallpaper = availableWallpapers[nextIndex];
-        const newWallpaperUrl = newWallpaper.url || newWallpaper.base64;
-        setCurrentWallpaper(newWallpaperUrl || '');
-        localStorage.setItem('wallpaperState', JSON.stringify({ current: newWallpaper.name, lastChanged: new Date().toISOString() }));
-      } else {
-        setCurrentWallpaper('');
-        localStorage.removeItem('wallpaperState');
-      }
-    };
-
-    const currentWallpaperDetails = allWallpapers.find(w => w.name === wallpaperState.current);
-    const isCurrentWallpaperValid = currentWallpaperDetails && config.backgroundUrls.includes(currentWallpaperDetails.url || currentWallpaperDetails.base64 || '');
-
-    if (!isCurrentWallpaperValid || Date.now() - lastChanged > frequency) {
-      updateWallpaper();
-    } else if (currentWallpaperDetails) {
-      setCurrentWallpaper(currentWallpaperDetails.url || currentWallpaperDetails.base64 || '');
-    } else {
-      // Fallback for when there's no valid wallpaper state
-      updateWallpaper();
-    }
-  }, [config.backgroundUrls, config.wallpaperFrequency, allWallpapers]);
-
-  useEffect(() => {
-    localStorage.setItem('categories', JSON.stringify(categories));
     localStorage.setItem('config', JSON.stringify(config));
-  }, [categories, config]);
+  }, [config]);
 
-  const handleSaveConfig = (newConfig: any) => {
+  const handleSaveConfig = (newConfig: Config) => {
     setConfig(newConfig);
     setIsConfigModalOpen(false);
   };
@@ -201,7 +147,6 @@ const App: React.FC = () => {
   };
 
   const handleMoveWebsite = (website: Website, direction: 'left' | 'right') => {
-    const categoryIndex = categories.findIndex(c => c.id === website.categoryId);
     if (categoryIndex === -1) return;
 
     const category = categories[categoryIndex];
@@ -259,14 +204,13 @@ const App: React.FC = () => {
     <main
       className={`min-h-screen w-full flex flex-col items-center ${getAlignmentClass(config.alignment)} p-4`}
     >
-      <div
-        className="fixed inset-0 w-full h-full bg-cover bg-center bg-fixed -z-10"
-        style={{
-          backgroundImage: `url('${currentWallpaper}')`,
-          filter: `blur(${config.wallpaperBlur}px) brightness(${config.wallpaperBrightness}%)`,
-          opacity: `${config.wallpaperOpacity}%`,
-        }}
-      ></div>
+      <Wallpaper
+        wallpaperNames={config.currentWallpapers}
+        blur={config.wallpaperBlur}
+        brightness={config.wallpaperBrightness}
+        opacity={config.wallpaperOpacity}
+        wallpaperFrequency={config.wallpaperFrequency}
+      />
       <EditButton isEditing={isEditing} onClick={() => setIsEditing(!isEditing)} />
       <ConfigurationButton onClick={() => setIsConfigModalOpen(true)} />
 
@@ -305,11 +249,7 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {config.serverWidget.enabled && (
-        <div className="absolute bottom-4 right-4">
-          <ServerWidget config={config} />
-        </div>
-      )}
+      {config.serverWidget.enabled && <ServerWidget config={config} />}
 
       {(editingWebsite || addingWebsite) && (
         <WebsiteEditModal
@@ -338,10 +278,10 @@ const App: React.FC = () => {
       )}
 
       {isConfigModalOpen && (
-        <ConfigurationModal 
+        <ConfigurationModal
           currentConfig={config}
-          onClose={() => setIsConfigModalOpen(false)} 
-          onSave={handleSaveConfig} 
+          onClose={() => setIsConfigModalOpen(false)}
+          onSave={handleSaveConfig}
           onWallpaperChange={handleWallpaperChange}
         />
       )}

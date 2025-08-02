@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Website } from '../types';
 import { getWebsiteIcon } from './utils/iconService';
 
