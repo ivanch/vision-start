@@ -55,10 +55,10 @@ npm run dev
 
 * [x] Multiple Wallpapers
 * [x] Remake icons
-* [] Increase offline compatibility (might not be possible)
-  * Use chrome.storage.local for user wallpapers -- this one is
-  * Use chrome.storage.local for some logos -- a bit hard
-    * Some logos have CORS enabled, we can add `"<all_urls>"` to the manifest.json file and cache them on storage local
+* [/] Increase offline compatibility (might not be possible)
+  - [x] Use chrome.storage.local for user wallpapers -- this one is
+  - [ ] Use chrome.storage.local for some logos -- a bit hard
+    - Some logos have CORS enabled, we can add `"<all_urls>"` to the manifest.json file and cache them on storage local
 * Dynamic Weather Widget
   * A box with information about the current weather, with manual entry on the location
   * Display current temperature, weather condition (e.g., "Sunny," "Cloudy"), and a corresponding icon
