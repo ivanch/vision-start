@@ -18,7 +18,6 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
   const [config, setConfig] = useState({
     ...currentConfig,
     titleSize: currentConfig.titleSize || 'medium',
-    subtitleSize: currentConfig.subtitleSize || 'medium',
     alignment: currentConfig.alignment || 'middle',
     tileSize: currentConfig.tileSize || 'medium',
     horizontalAlignment: currentConfig.horizontalAlignment || 'middle',
@@ -301,30 +300,6 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
                 <Dropdown
                   name="titleSize"
                   value={config.titleSize}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'tiny', label: 'Tiny' },
-                    { value: 'small', label: 'Small' },
-                    { value: 'medium', label: 'Medium' },
-                    { value: 'large', label: 'Large' },
-                  ]}
-                />
-              </div>
-              <div>
-                <label className="text-slate-300 text-sm font-semibold mb-2 block">Subtitle</label>
-                <input
-                  type="text"
-                  name="subtitle"
-                  value={config.subtitle}
-                  onChange={handleChange}
-                  className="bg-white/10 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Subtitle Size</label>
-                <Dropdown
-                  name="subtitleSize"
-                  value={config.subtitleSize}
                   onChange={handleChange}
                   options={[
                     { value: 'tiny', label: 'Tiny' },

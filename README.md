@@ -82,7 +82,7 @@ npm run dev
   * Dynamic Wallpaper-Based Theming
     * Automatically adapt the UI's accent color to match the current wallpaper
   * Minimal feel toggle
-    * Disable title & subtitle and search widget
+    * Disable title and search widget
     * Tiles become small stylish lines
 
 From a technical side:

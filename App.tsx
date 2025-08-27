@@ -13,14 +13,12 @@ import Wallpaper from './components/Wallpaper';
 
 const defaultConfig: Config = {
   title: 'Vision Start',
-  subtitle: 'Your personal portal to the web.',
   currentWallpapers: ['Abstract'],
   wallpaperFrequency: '1d',
   wallpaperBlur: 0,
   wallpaperBrightness: 100,
   wallpaperOpacity: 100,
   titleSize: 'medium',
-  subtitleSize: 'medium',
   alignment: 'middle',
   horizontalAlignment: 'middle',
   clock: {

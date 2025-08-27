@@ -59,7 +59,7 @@ const Header: React.FC<HeaderProps> = ({ config }) => {
         </div>
       )}
       <div className={`flex flex-col ${config.alignment === 'bottom' ? 'mt-auto' : ''} items-center`}>
-        {(config.title || config.subtitle) && (
+        {config.title && (
           <div className="text-center">
             <h1
               className={`${getTitleSizeClass(config.titleSize)} font-extrabold text-white tracking-tighter mb-3 mt-4`}
@@ -67,12 +67,6 @@ const Header: React.FC<HeaderProps> = ({ config }) => {
             >
               {config.title}
             </h1>
-            <p
-              className={`${getSubtitleSizeClass(config.subtitleSize)} text-slate-300`}
-              style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}
-            >
-              {config.subtitle}
-            </p>
           </div>
         )}
       </div>

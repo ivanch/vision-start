@@ -26,14 +26,12 @@ export interface Wallpaper {
 
 export interface Config {
   title: string;
-  subtitle: string;
   currentWallpapers: string[];
   wallpaperFrequency: string;
   wallpaperBlur: number;
   wallpaperBrightness: number;
   wallpaperOpacity: number;
   titleSize: string;
-  subtitleSize: string;
   alignment: string;
   horizontalAlignment: string;
   clock: {
