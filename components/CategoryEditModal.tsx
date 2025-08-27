@@ -40,7 +40,7 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({ category, edit, o
             )}
           </div>
           <div className="flex justify-end gap-4">
-            <button onClick={handleSave} className="bg-green-500 hover:bg-green-400 text-white font-bold py-2 px-6 rounded-lg">
+            <button onClick={() => onSave(name)} className="bg-green-500 hover:bg-green-400 text-white font-bold py-2 px-6 rounded-lg">
               Save
             </button>
             <button onClick={onClose} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg">

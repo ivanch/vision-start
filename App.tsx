@@ -69,6 +69,14 @@ const App: React.FC = () => {
     localStorage.setItem('config', JSON.stringify(config));
   }, [config]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('categories', JSON.stringify(categories));
+    } catch (error) {
+      console.error('Error saving categories to localStorage', error);
+    }
+  }, [categories]);
+
   const handleSaveConfig = (newConfig: Config) => {
     setConfig(newConfig);
     setIsConfigModalOpen(false);
@@ -80,10 +88,11 @@ const App: React.FC = () => {
 
   const handleSaveWebsite = (website: Partial<Website>) => {
     if (editingWebsite) {
+      const idToUpdate = website.id ?? editingWebsite.id;
       const newCategories = categories.map(category => ({
         ...category,
         websites: category.websites.map(w =>
-          w.id === website.id ? { ...w, ...website } : w
+          w.id === idToUpdate ? { ...w, ...website, id: idToUpdate } : w
         ),
       }));
       setCategories(newCategories);
@@ -145,6 +154,7 @@ const App: React.FC = () => {
   };
 
   const handleMoveWebsite = (website: Website, direction: 'left' | 'right') => {
+    const categoryIndex = categories.findIndex(cat => cat.websites.some(w => w.id === website.id));
     if (categoryIndex === -1) return;
 
     const category = categories[categoryIndex];

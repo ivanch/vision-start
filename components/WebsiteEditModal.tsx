@@ -76,6 +76,7 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
   };
 
   const handleSave = () => {
+    console.log({ id: website?.id, name, url, icon });
     onSave({ id: website?.id, name, url, icon });
   };
 
