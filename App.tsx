@@ -10,29 +10,7 @@ import EditButton from './components/layout/EditButton';
 import ConfigurationButton from './components/layout/ConfigurationButton';
 import CategoryGroup from './components/layout/CategoryGroup';
 import Wallpaper from './components/Wallpaper';
-
-const defaultConfig: Config = {
-  title: 'Vision Start',
-  currentWallpapers: ['Abstract'],
-  wallpaperFrequency: '1d',
-  wallpaperBlur: 0,
-  wallpaperBrightness: 100,
-  wallpaperOpacity: 100,
-  titleSize: 'medium',
-  alignment: 'middle',
-  horizontalAlignment: 'middle',
-  clock: {
-    enabled: true,
-    size: 'medium',
-    font: 'Helvetica',
-    format: 'h:mm A',
-  },
-  serverWidget: {
-    enabled: false,
-    pingFrequency: 15,
-    servers: [],
-  },
-};
+import { ConfigurationService } from './components/services/ConfigurationService';
 
 const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(() => {
@@ -52,21 +30,10 @@ const App: React.FC = () => {
   const [addingWebsite, setAddingWebsite] = useState<Category | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [config, setConfig] = useState<Config>(() => {
-    try {
-      const storedConfig = localStorage.getItem('config');
-      if (storedConfig) {
-        const parsedConfig = JSON.parse(storedConfig);
-        return { ...defaultConfig, ...parsedConfig };
-      }
-    } catch (error) {
-      console.error('Error parsing config from localStorage', error);
-    }
-    return { ...defaultConfig };
-  });
+  const [config, setConfig] = useState<Config>(() => ConfigurationService.loadConfig());
 
   useEffect(() => {
-    localStorage.setItem('config', JSON.stringify(config));
+    ConfigurationService.saveConfig(config);
   }, [config]);
 
   useEffect(() => {

@@ -1,92 +1,42 @@
 import React, { useState, useRef, useEffect } from 'react';
-import ToggleSwitch from './ToggleSwitch';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Server, Wallpaper } from '../types';
-
-import Dropdown from './Dropdown';
+import { Config, Wallpaper } from '../types';
 import { baseWallpapers } from './utils/baseWallpapers';
-import { addWallpaperToChromeStorageLocal, removeWallpaperFromChromeStorageLocal, checkChromeStorageLocalAvailable } from './utils/StorageLocalManager';
-
-const REQUIRED_LOCAL_STORAGE_KEYS = ['config', 'categories', 'userWallpapers', 'wallpaperState'] as const;
-
-type RequiredLocalStorageKey = typeof REQUIRED_LOCAL_STORAGE_KEYS[number];
-
-const safeParse = (value: string | null): unknown => {
-  if (value === null) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-};
-
-const toStorageString = (value: unknown): string => {
-  return typeof value === 'string' ? value : JSON.stringify(value);
-};
+import { checkChromeStorageLocalAvailable } from './utils/StorageLocalManager';
+import { ConfigurationService } from './services/ConfigurationService';
+import GeneralTab from './configuration/GeneralTab';
+import ThemeTab from './configuration/ThemeTab';
+import ClockTab from './configuration/ClockTab';
+import ServerWidgetTab from './configuration/ServerWidgetTab';
 
 interface ConfigurationModalProps {
   onClose: () => void;
-  onSave: (config: any) => void;
-  currentConfig: any;
-  onWallpaperChange: (newConfig: Partial<any>) => void;
+  onSave: (config: Config) => void;
+  currentConfig: Config;
+  onWallpaperChange: (newConfig: Partial<Config>) => void;
 }
 
-const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave, currentConfig, onWallpaperChange }) => {
-  const [config, setConfig] = useState({
-    ...currentConfig,
-    titleSize: currentConfig.titleSize || 'medium',
-    alignment: currentConfig.alignment || 'middle',
-    tileSize: currentConfig.tileSize || 'medium',
-    horizontalAlignment: currentConfig.horizontalAlignment || 'middle',
-    wallpaperBlur: currentConfig.wallpaperBlur || 0,
-    wallpaperBrightness: currentConfig.wallpaperBrightness || 100,
-    wallpaperOpacity: currentConfig.wallpaperOpacity || 100,
-    serverWidget: {
-      enabled: false,
-      pingFrequency: 15,
-      servers: [],
-      ...currentConfig.serverWidget,
-    },
-    clock: {
-      enabled: true,
-      size: 'medium',
-      font: 'Helvetica',
-      format: 'h:mm A',
-      ...currentConfig.clock,
-    },
-    currentWallpapers: Array.isArray(currentConfig.currentWallpapers)
-      ? currentConfig.currentWallpapers.filter((name: string) => typeof name === 'string')
-      : [],
-    wallpaperFrequency: currentConfig.wallpaperFrequency || '1d',
-  });
+const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
+  onClose,
+  onSave,
+  currentConfig,
+  onWallpaperChange,
+}) => {
+  const [config, setConfig] = useState<Config>(currentConfig);
   const [activeTab, setActiveTab] = useState('general');
-  const [newServerName, setNewServerName] = useState('');
-  const [newServerAddress, setNewServerAddress] = useState('');
-  const [newWallpaperName, setNewWallpaperName] = useState('');
-  const [newWallpaperUrl, setNewWallpaperUrl] = useState('');
   const [userWallpapers, setUserWallpapers] = useState<Wallpaper[]>([]);
   const [chromeStorageAvailable, setChromeStorageAvailable] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const isSaving = useRef(false);
-  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     setChromeStorageAvailable(checkChromeStorageLocalAvailable());
-    const storedUserWallpapers = localStorage.getItem('userWallpapers');
-    if (storedUserWallpapers) {
-      setUserWallpapers(JSON.parse(storedUserWallpapers));
-    }
+    setUserWallpapers(ConfigurationService.loadUserWallpapers());
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVisible(true);
-    }, 10);
+    const timer = setTimeout(() => setIsVisible(true), 10);
     return () => clearTimeout(timer);
   }, []);
 
@@ -98,235 +48,67 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
     };
   }, []);
 
-  const handleClose = () => {
-    setIsVisible(false);
-    setTimeout(() => {
-      onClose();
-    }, 250);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: string | string[] } }) => {
-    const { name, value } = e.target;
-    if (name === 'currentWallpapers') {
-      const wallpaperNames = Array.isArray(value) ? value : [value];
-      setConfig({ ...config, currentWallpapers: wallpaperNames });
-    } else if (name.startsWith('serverWidget.')) {
-      const field = name.split('.')[1];
-      setConfig({
-        ...config,
-        serverWidget: { ...config.serverWidget, [field]: value },
-      });
-    } else if (name.startsWith('clock.')) {
-      const field = name.split('.')[1];
-      setConfig({
-        ...config,
-        clock: { ...config.clock, [field]: value },
-      });
-    } else {
-      setConfig({ ...config, [name]: value });
-    }
-  };
-
   useEffect(() => {
     onWallpaperChange({ currentWallpapers: config.currentWallpapers });
-    // Set wallpaperState in localStorage with lastWallpaperChange datetime
-    localStorage.setItem('wallpaperState', JSON.stringify({
-      lastWallpaperChange: new Date().toISOString(),
-      currentIndex: 0,
-    }));
+    ConfigurationService.resetWallpaperState();
   }, [config.currentWallpapers]);
 
-  const handleClockToggleChange = (checked: boolean) => {
-    setConfig({ ...config, clock: { ...config.clock, enabled: checked } });
+  const handleClose = () => {
+    setIsVisible(false);
+    setTimeout(onClose, 250);
   };
 
-  const handleServerWidgetToggleChange = (checked: boolean) => {
-    setConfig({
-      ...config,
-      serverWidget: { ...config.serverWidget, enabled: checked },
-    });
+  const handleConfigChange = (updates: Partial<Config>) => {
+    setConfig((prev) => ({ ...prev, ...updates }));
   };
 
-  const handleAddServer = () => {
-    if (newServerName.trim() === '' || newServerAddress.trim() === '') return;
-
-    const newServer: Server = {
-      id: Date.now().toString(),
-      name: newServerName,
-      address: newServerAddress,
-    };
-
-    setConfig({
-      ...config,
-      serverWidget: {
-        ...config.serverWidget,
-        servers: [...config.serverWidget.servers, newServer],
-      },
-    });
-
-    setNewServerName('');
-    setNewServerAddress('');
+  const handleAddWallpaper = async (name: string, url: string) => {
+    const newWallpaper = await ConfigurationService.addWallpaper(name, url);
+    const updated = [...userWallpapers, newWallpaper];
+    setUserWallpapers(updated);
+    ConfigurationService.saveUserWallpapers(updated);
+    setConfig((prev) => ({
+      ...prev,
+      currentWallpapers: [...prev.currentWallpapers, newWallpaper.name],
+    }));
   };
 
-  const handleRemoveServer = (id: string) => {
-    setConfig({
-      ...config,
-      serverWidget: {
-        ...config.serverWidget,
-        servers: config.serverWidget.servers.filter((server: Server) => server.id !== id),
-      },
-    });
+  const handleAddWallpaperFile = async (file: File) => {
+    const newWallpaper = await ConfigurationService.addWallpaperFile(file);
+    const updated = [...userWallpapers, newWallpaper];
+    setUserWallpapers(updated);
+    ConfigurationService.saveUserWallpapers(updated);
+    setConfig((prev) => ({
+      ...prev,
+      currentWallpapers: [...prev.currentWallpapers, newWallpaper.name],
+    }));
   };
 
-  const onDragEnd = (result: any) => {
-    if (!result.destination) return;
-
-    const items = Array.from(config.serverWidget.servers);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    setConfig({
-      ...config,
-      serverWidget: {
-        ...config.serverWidget,
-        servers: items,
-      },
-    });
-  };
-
-  const handleAddWallpaper = async () => {
-    if (newWallpaperUrl.trim() === '') return;
+  const handleDeleteWallpaper = async (wallpaper: Wallpaper) => {
     try {
-      const finalName = await addWallpaperToChromeStorageLocal(newWallpaperName, newWallpaperUrl);
-      const newWallpaper: Wallpaper = { name: finalName };
-      const updatedUserWallpapers = [...userWallpapers, newWallpaper];
-      setUserWallpapers(updatedUserWallpapers);
-      localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
-      setConfig({ ...config, currentWallpapers: [...config.currentWallpapers, newWallpaper.name] });
-      setNewWallpaperName('');
-      setNewWallpaperUrl('');
-    } catch (error) {
-      alert('Error adding wallpaper. Please check the URL and try again.');
-      console.error(error);
-    }
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 4 * 1024 * 1024) {
-        alert('File size exceeds 4MB. Please choose a smaller file.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result as string;
-        if (base64.length > 4.5 * 1024 * 1024) {
-          alert('The uploaded image is too large. Please choose a smaller file.');
-          return;
-        }
-        try {
-          const finalName = await addWallpaperToChromeStorageLocal(file.name, base64);
-          const newWallpaper: Wallpaper = { name: finalName };
-          const updatedUserWallpapers = [...userWallpapers, newWallpaper];
-          setUserWallpapers(updatedUserWallpapers);
-          localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
-          setConfig({ ...config, currentWallpapers: [...config.currentWallpapers, newWallpaper.name] });
-        } catch (error) {
-          alert('Error adding wallpaper. Please try again.');
-          console.error(error);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleDeleteUserWallpaper = async (wallpaper: Wallpaper) => {
-    try {
-      await removeWallpaperFromChromeStorageLocal(wallpaper.name);
-      const updatedUserWallpapers = userWallpapers.filter(w => w.name !== wallpaper.name);
-      setUserWallpapers(updatedUserWallpapers);
-      localStorage.setItem('userWallpapers', JSON.stringify(updatedUserWallpapers));
-      const newcurrentWallpapers = config.currentWallpapers.filter((name: string) => name !== wallpaper.name);
-      const newConfig = { ...config, currentWallpapers: newcurrentWallpapers };
-      setConfig(newConfig);
-      onWallpaperChange({ currentWallpapers: newcurrentWallpapers });
+      await ConfigurationService.deleteWallpaper(wallpaper);
+      const updated = userWallpapers.filter((w) => w.name !== wallpaper.name);
+      setUserWallpapers(updated);
+      ConfigurationService.saveUserWallpapers(updated);
+      const newCurrentWallpapers = config.currentWallpapers.filter((n) => n !== wallpaper.name);
+      setConfig((prev) => ({ ...prev, currentWallpapers: newCurrentWallpapers }));
+      onWallpaperChange({ currentWallpapers: newCurrentWallpapers });
     } catch (error) {
       alert('Error deleting wallpaper. Please try again.');
       console.error(error);
     }
   };
 
-  const handleExportConfig = () => {
-    const exportPayload = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      requiredLocalStorageKeys: [...REQUIRED_LOCAL_STORAGE_KEYS],
-      localStorage: REQUIRED_LOCAL_STORAGE_KEYS.reduce((acc, key) => {
-        acc[key] = safeParse(localStorage.getItem(key));
-        return acc;
-      }, {} as Record<RequiredLocalStorageKey, unknown>),
-    };
-
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `vision-start-config-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportClick = () => {
-    importInputRef.current?.click();
-  };
-
   const handleImportConfig = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
+    if (!file) return;
     try {
-      const fileContent = await file.text();
-      const parsed = JSON.parse(fileContent);
-      const localStorageData = parsed?.localStorage && typeof parsed.localStorage === 'object'
-        ? parsed.localStorage
-        : parsed;
-
-      if (!localStorageData || typeof localStorageData !== 'object') {
-        throw new Error('Invalid import file format.');
-      }
-
-      let importedAny = false;
-
-      REQUIRED_LOCAL_STORAGE_KEYS.forEach((key) => {
-        if (Object.prototype.hasOwnProperty.call(localStorageData, key)) {
-          const rawValue = (localStorageData as Record<string, unknown>)[key];
-          localStorage.setItem(key, toStorageString(rawValue));
-          importedAny = true;
-        }
-      });
-
-      if (!importedAny) {
-        throw new Error(`No required keys found. Expected: ${REQUIRED_LOCAL_STORAGE_KEYS.join(', ')}`);
-      }
-
-      const importedConfig = (localStorageData as Record<string, unknown>).config;
-      const importedUserWallpapers = (localStorageData as Record<string, unknown>).userWallpapers;
-
-      if (importedConfig && typeof importedConfig === 'object') {
-        setConfig(importedConfig as typeof config);
-        onWallpaperChange({ currentWallpapers: (importedConfig as { currentWallpapers?: string[] }).currentWallpapers || [] });
-        onSave(importedConfig);
-      }
-
-      if (Array.isArray(importedUserWallpapers)) {
-        setUserWallpapers(importedUserWallpapers as Wallpaper[]);
-      }
-
+      const { config: importedConfig, userWallpapers: importedWallpapers } =
+        await ConfigurationService.importConfig(file);
+      setConfig(importedConfig);
+      setUserWallpapers(importedWallpapers);
+      onWallpaperChange({ currentWallpapers: importedConfig.currentWallpapers || [] });
+      onSave(importedConfig);
       alert('Configuration imported successfully. The page will reload to apply all data.');
       window.location.reload();
     } catch (error) {
@@ -339,6 +121,13 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
 
   const allWallpapers = [...baseWallpapers, ...userWallpapers];
 
+  const tabs = [
+    { id: 'general', label: 'General' },
+    { id: 'theme', label: 'Theme' },
+    { id: 'clock', label: 'Clock' },
+    { id: 'serverWidget', label: 'Server Widget' },
+  ];
+
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
       <div
@@ -346,7 +135,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={handleClose}
-      ></div>
+      />
 
       <div
         ref={menuRef}
@@ -358,415 +147,85 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
           <h2 className="text-3xl font-bold mb-6">Configuration</h2>
 
           <div className="flex border-b border-white/10 mb-6">
-            <button
-              className={`px-4 py-2 text-lg font-semibold ${activeTab === 'general' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}
-              onClick={() => setActiveTab('general')}
-            >
-              General
-            </button>
-            <button
-              className={`px-4 py-2 text-lg font-semibold ${activeTab === 'theme' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}
-              onClick={() => setActiveTab('theme')}
-            >
-              Theme
-            </button>
-            <button
-              className={`px-4 py-2 text-lg font-semibold ${activeTab === 'clock' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}
-              onClick={() => setActiveTab('clock')}
-            >
-              Clock
-            </button>
-            <button
-              className={`px-4 py-2 text-lg font-semibold ${activeTab === 'serverWidget' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400'}`}
-              onClick={() => setActiveTab('serverWidget')}
-            >
-              Server Widget
-            </button>
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                className={`px-4 py-2 text-lg font-semibold ${
+                  activeTab === tab.id
+                    ? 'text-cyan-400 border-b-2 border-cyan-400'
+                    : 'text-slate-400'
+                }`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {activeTab === 'general' && (
-            <div className="flex flex-col gap-6">
-              <div>
-                <label className="text-slate-300 text-sm font-semibold mb-2 block">Title</label>
-                <input
-                  type="text"
-                  name="title"
-                  value={config.title}
-                  onChange={handleChange}
-                  className="bg-white/10 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Title Size</label>
-                <Dropdown
-                  name="titleSize"
-                  value={config.titleSize}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'tiny', label: 'Tiny' },
-                    { value: 'small', label: 'Small' },
-                    { value: 'medium', label: 'Medium' },
-                    { value: 'large', label: 'Large' },
-                  ]}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Vertical Alignment</label>
-                <Dropdown
-                  name="alignment"
-                  value={config.alignment}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'top', label: 'Top' },
-                    { value: 'middle', label: 'Middle' },
-                    { value: 'bottom', label: 'Bottom' },
-                  ]}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Tile Size</label>
-                <Dropdown
-                  name="tileSize"
-                  value={config.tileSize}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'small', label: 'Small' },
-                    { value: 'medium', label: 'Medium' },
-                    { value: 'large', label: 'Large' },
-                  ]}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Horizontal Alignment</label>
-                <Dropdown
-                  name="horizontalAlignment"
-                  value={config.horizontalAlignment}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'left', label: 'Left' },
-                    { value: 'middle', label: 'Middle' },
-                    { value: 'right', label: 'Right' },
-                  ]}
-                />
-              </div>
-            </div>
+            <GeneralTab config={config} onChange={handleConfigChange} />
           )}
-
           {activeTab === 'theme' && (
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Background</label>
-                <Dropdown
-                  name="currentWallpapers"
-                  value={config.currentWallpapers}
-                  onChange={handleChange}
-                  multiple
-                  options={allWallpapers.map(w => ({
-                    value: w.name,
-                    label: w.name
-                  }))}
-                />
-              </div>
-              {Array.isArray(config.currentWallpapers) && config.currentWallpapers.length > 1 && (
-                <div className="flex items-center justify-between">
-                  <label className="text-slate-300 text-sm font-semibold">Change Frequency</label>
-                  <Dropdown
-                    name="wallpaperFrequency"
-                    value={config.wallpaperFrequency}
-                    onChange={handleChange}
-                    options={[
-                      { value: '1h', label: '1 hour' },
-                      { value: '3h', label: '3 hours' },
-                      { value: '6h', label: '6 hours' },
-                      { value: '12h', label: '12 hours' },
-                      { value: '1d', label: '1 day' },
-                      { value: '2d', label: '2 days' },
-                    ]}
-                  />
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Wallpaper Blur</label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    name="wallpaperBlur"
-                    min="0"
-                    max="50"
-                    value={config.wallpaperBlur}
-                    onChange={handleChange}
-                    className="w-48"
-                  />
-                  <span>{config.wallpaperBlur}px</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Wallpaper Brightness</label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    name="wallpaperBrightness"
-                    min="0"
-                    max="200"
-                    value={config.wallpaperBrightness}
-                    onChange={handleChange}
-                    className="w-48"
-                  />
-                  <span>{config.wallpaperBrightness}%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Wallpaper Opacity</label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    name="wallpaperOpacity"
-                    min="1"
-                    max="100"
-                    value={config.wallpaperOpacity}
-                    onChange={handleChange}
-                    className="w-48"
-                  />
-                  <span>{config.wallpaperOpacity}%</span>
-                </div>
-              </div>
-              {chromeStorageAvailable && (
-                <>
-                  <div>
-                    <h3 className="text-slate-300 text-sm font-semibold mb-2">User Wallpapers</h3>
-                    <div className="flex flex-col gap-2">
-                      {userWallpapers.map((wallpaper) => (
-                        <div key={wallpaper.name} className="flex items-center justify-between bg-white/10 p-2 rounded-lg">
-                          <span className="truncate">{wallpaper.name}</span>
-                          <button
-                            onClick={() => handleDeleteUserWallpaper(wallpaper)}
-                            className="text-red-500 hover:text-red-400"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
-                              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                              <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-slate-300 text-sm font-semibold mb-2">Add New Wallpaper</h3>
-                    <div className="flex flex-col gap-2">
-                      <input
-                        type="text"
-                        placeholder="Wallpaper Name (optional for URLs)"
-                        value={newWallpaperName}
-                        onChange={(e) => setNewWallpaperName(e.target.value)}
-                        className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                      />
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Image URL"
-                          value={newWallpaperUrl}
-                          onChange={(e) => setNewWallpaperUrl(e.target.value)}
-                          className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                        />
-                        <button
-                          onClick={handleAddWallpaper}
-                          className="bg-cyan-500 hover:bg-cyan-400 text-white font-bold py-2 px-4 rounded-lg"
-                        >
-                          Add
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-center w-full">
-                        <label
-                          htmlFor="file-upload"
-                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-white/5 border-white/20 hover:bg-white/10"
-                        >
-                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <svg className="w-8 h-8 mb-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                              <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                            </svg>
-                            <p className="mb-2 text-sm text-gray-400"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                            <p className="text-xs text-gray-400">PNG, JPG, WEBP, etc.</p>
-                          </div>
-                          <input id="file-upload" type="file" className="hidden" onChange={handleFileUpload} ref={fileInputRef} />
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            <ThemeTab
+              config={config}
+              onChange={handleConfigChange}
+              userWallpapers={userWallpapers}
+              allWallpapers={allWallpapers}
+              chromeStorageAvailable={chromeStorageAvailable}
+              onAddWallpaper={handleAddWallpaper}
+              onAddWallpaperFile={handleAddWallpaperFile}
+              onDeleteWallpaper={handleDeleteWallpaper}
+            />
           )}
-
           {activeTab === 'clock' && (
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Enable Clock</label>
-                <ToggleSwitch
-                  checked={config.clock.enabled}
-                  onChange={handleClockToggleChange}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Clock Size</label>
-                <Dropdown
-                  name="clock.size"
-                  value={config.clock.size}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'tiny', label: 'Tiny' },
-                    { value: 'small', label: 'Small' },
-                    { value: 'medium', label: 'Medium' },
-                    { value: 'large', label: 'Large' },
-                  ]}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Clock Font</label>
-                <Dropdown
-                  name="clock.font"
-                  value={config.clock.font}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'Helvetica', label: 'Helvetica' },
-                    { value: `'Orbitron', sans-serif`, label: 'Orbitron' },
-                    { value: 'monospace', label: 'Monospace' },
-                    { value: 'cursive', label: 'Cursive' },
-                  ]}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Time Format</label>
-                <Dropdown
-                  name="clock.format"
-                  value={config.clock.format}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'h:mm A', label: 'AM/PM' },
-                    { value: 'HH:mm', label: '24:00' },
-                  ]}
-                />
-              </div>
-            </div>
+            <ClockTab config={config} onChange={handleConfigChange} />
           )}
-
           {activeTab === 'serverWidget' && (
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between">
-                <label className="text-slate-300 text-sm font-semibold">Enable Server Widget</label>
-                <ToggleSwitch
-                  checked={config.serverWidget.enabled}
-                  onChange={handleServerWidgetToggleChange}
-                />
-              </div>
-              {config.serverWidget.enabled && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <label className="text-slate-300 text-sm font-semibold">Ping Frequency</label>
-                    <div className="flex items-center gap-4">
-                      <input
-                        type="range"
-                        name="serverWidget.pingFrequency"
-                        min="5"
-                        max="60"
-                        value={config.serverWidget.pingFrequency}
-                        onChange={handleChange}
-                        className="w-48"
-                      />
-                      <span>{config.serverWidget.pingFrequency}s</span>
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-slate-300 text-sm font-semibold mb-2">Servers</h3>
-                    <DragDropContext onDragEnd={onDragEnd}>
-                      <Droppable droppableId="servers">
-                        {(provided) => (
-                          <div {...provided.droppableProps} ref={provided.innerRef} className="flex flex-col gap-2">
-                            {config.serverWidget.servers.map((server: Server, index: number) => (
-                              <Draggable key={server.id} draggableId={server.id} index={index}>
-                                {(provided) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    className="flex items-center justify-between bg-white/10 p-2 rounded-lg"
-                                  >
-                                    <div>
-                                      <p className="font-semibold">{server.name}</p>
-                                      <p className="text-sm text-slate-400">{server.address}</p>
-                                    </div>
-                                    <button
-                                      onClick={() => handleRemoveServer(server.id)}
-                                      className="text-red-500 hover:text-red-400"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
-                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                                        <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
-                                      </svg>
-                                    </button>
-                                  </div>
-                                )}
-                              </Draggable>
-                            ))}
-                            {provided.placeholder}
-                          </div>
-                        )}
-                      </Droppable>
-                    </DragDropContext>
-                    <div className="flex gap-2 mt-2">
-                      <input
-                        type="text"
-                        placeholder="Server Name"
-                        value={newServerName}
-                        onChange={(e) => setNewServerName(e.target.value)}
-                        className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                      />
-                      <input
-                        type="text"
-                        placeholder="HTTP Address"
-                        value={newServerAddress}
-                        onChange={(e) => setNewServerAddress(e.target.value)}
-                        className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                      />
-                      <button
-                        onClick={handleAddServer}
-                        className="bg-cyan-500 hover:bg-cyan-400 text-white font-bold py-2 px-4 rounded-lg"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            <ServerWidgetTab config={config} onChange={handleConfigChange} />
           )}
         </div>
+
         <div className="p-8 border-t border-white/10">
-            <div className="flex items-center justify-between gap-4">
-                <div className="flex gap-2">
-                    <button onClick={handleExportConfig} className="bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-sm font-semibold py-1.5 px-3 rounded-lg transition-all duration-150 ease-ios">
-                        Export
-                    </button>
-                    <button onClick={handleImportClick} className="bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-sm font-semibold py-1.5 px-3 rounded-lg transition-all duration-150 ease-ios">
-                        Import
-                    </button>
-                    <input
-                      ref={importInputRef}
-                      type="file"
-                      accept="application/json"
-                      className="hidden"
-                      onChange={handleImportConfig}
-                    />
-                </div>
-                <div className="flex justify-end gap-4">
-                <button onClick={() => { isSaving.current = true; onSave(config); }} className="bg-green-500 hover:bg-green-400 active:scale-95 text-white font-bold py-2 px-6 rounded-lg transition-all duration-150 ease-ios">
-                    Save & Close
-                </button>
-                <button onClick={handleClose} className="bg-gray-600 hover:bg-gray-500 active:scale-95 text-white font-bold py-2 px-6 rounded-lg transition-all duration-150 ease-ios">
-                    Cancel
-                </button>
-                </div>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex gap-2">
+              <button
+                onClick={() => ConfigurationService.exportConfig()}
+                className="bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-sm font-semibold py-1.5 px-3 rounded-lg transition-all duration-150 ease-ios"
+              >
+                Export
+              </button>
+              <button
+                onClick={() => importInputRef.current?.click()}
+                className="bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-sm font-semibold py-1.5 px-3 rounded-lg transition-all duration-150 ease-ios"
+              >
+                Import
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json"
+                className="hidden"
+                onChange={handleImportConfig}
+              />
             </div>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => {
+                  isSaving.current = true;
+                  onSave(config);
+                }}
+                className="bg-green-500 hover:bg-green-400 active:scale-95 text-white font-bold py-2 px-6 rounded-lg transition-all duration-150 ease-ios"
+              >
+                Save & Close
+              </button>
+              <button
+                onClick={handleClose}
+                className="bg-gray-600 hover:bg-gray-500 active:scale-95 text-white font-bold py-2 px-6 rounded-lg transition-all duration-150 ease-ios"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
