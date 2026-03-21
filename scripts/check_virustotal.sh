@@ -55,34 +55,34 @@ echo "File uploaded successfully. Scan ID: $SCAN_ID"
 echo "Waiting for analysis to complete..."
 
 # Wait for analysis to complete and get results
-MAX_ATTEMPTS=30
+MAX_ATTEMPTS=60
 ATTEMPT=0
 SLEEP_INTERVAL=10
 
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
     echo "Checking analysis status (attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS)..."
-    
+
     # Get scan report
     REPORT_RESPONSE=$(curl -s -X POST \
         -d "apikey=$API_KEY" \
         -d "resource=$SCAN_ID" \
         "$BASE_URL/file/report")
-    
+
     # Check if analysis is complete
     RESPONSE_CODE=$(echo "$REPORT_RESPONSE" | jq -r '.response_code')
-    
+
     if [ "$RESPONSE_CODE" == "1" ]; then
         # Analysis complete
         echo "Analysis completed!"
-        
+
         # Extract results
         POSITIVES=$(echo "$REPORT_RESPONSE" | jq -r '.positives')
         TOTAL=$(echo "$REPORT_RESPONSE" | jq -r '.total')
         PERMALINK=$(echo "$REPORT_RESPONSE" | jq -r '.permalink')
-        
+
         echo "Analysis URL: $PERMALINK"
         echo "Detection ratio: $POSITIVES/$TOTAL"
-        
+
         # Check if file is safe
         if [ "$POSITIVES" -eq 0 ]; then
             echo "✅ File is clean (no threats detected)"
@@ -102,7 +102,7 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
         echo "Response: $REPORT_RESPONSE"
         exit 1
     fi
-    
+
     ATTEMPT=$((ATTEMPT + 1))
     if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
         sleep $SLEEP_INTERVAL

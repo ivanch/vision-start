@@ -59,8 +59,9 @@ jobs:
           virustotal_apikey: ${{ secrets.VIRUSTOTAL_APIKEY }}
           VIRUS_TOTAL_FILE: vision-start-${{ gitea.ref_name }}.zip
         run: |
-          # Run the VirusTotal check script and capture output
-          bash scripts/check_virustotal.sh > vt_output.txt 2>&1
+          # Run the VirusTotal check script and capture output in real-time
+          set -o pipefail
+          bash scripts/check_virustotal.sh 2>&1 | tee vt_output.txt
 
           # Extract analysis URL and detection ratio from output
           ANALYSIS_URL=$(grep "Analysis URL:" vt_output.txt | cut -d' ' -f3- || echo "Not available")
@@ -69,9 +70,6 @@ jobs:
           # Set outputs for next job
           echo "analysis-url=$ANALYSIS_URL" >> $GITEA_OUTPUT
           echo "detection-ratio=$DETECTION_RATIO" >> $GITEA_OUTPUT
-
-          # Display the full output
-          cat vt_output.txt
 
   release:
     runs-on: ubuntu-latest
