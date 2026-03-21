@@ -97,7 +97,7 @@ jobs:
 
   build_vision_start:
     name: Build Vision Start Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
     steps:
       - name: Check out repository
@@ -124,7 +124,7 @@ jobs:
 
   deploy_vision_start:
     name: Deploy Vision Start (production)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-amd64
     needs: build_vision_start
     steps:
       - name: Recreate Container

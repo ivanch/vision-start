@@ -16,7 +16,7 @@ jobs:
   build:
     name: Build Vision Start
     if: gitea.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -27,7 +27,7 @@ jobs:
 
   build_vision_start:
     name: Build Vision Start Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
     steps:
       - name: Check out repository
@@ -54,7 +54,7 @@ jobs:
 
   deploy_vision_start:
     name: Deploy Vision Start (staging)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-amd64
     needs: build_vision_start
     steps:
       - name: Recreate Container
