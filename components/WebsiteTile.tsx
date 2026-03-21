@@ -73,13 +73,13 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
   const iconSizeLoadingClass = `w-[${getIconLoadingPixelSize(tileSize)}px] h-[${getIconLoadingPixelSize(tileSize)}px]`;
 
   return (
-    <div className={`relative ${getTileSizeClass(tileSize)} transition-all duration-300 ease-in-out`}>
+    <div className={`relative ${getTileSizeClass(tileSize)} transition-all duration-200 ease-ios`}>
       <a
         href={isEditing ? undefined : website.url}
         target="_self"
         rel="noopener noreferrer"
         onClick={handleClick}
-        className="group flex flex-col items-center justify-center p-4 bg-black/25 backdrop-blur-md border border-white/10 rounded-2xl w-full h-full transform transition-all duration-300 ease-in-out hover:scale-105 hover:bg-white/25 shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75"
+        className="group flex flex-col items-center justify-center p-4 bg-black/25 backdrop-blur-md border border-white/10 rounded-2xl w-full h-full transform transition-all duration-200 ease-ios hover:scale-[1.04] active:scale-[0.96] hover:bg-white/25 shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-75"
       >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center mb-6">
@@ -89,11 +89,11 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
             </svg>
           </div>
         )}
-        <div className={`flex items-center transition-all duration-300 ease-in ${isLoading ? 'mt-18' : 'flex-col'} ${isLoading ? 'gap-2' : ''}`}>
-          <div className={`transition-all duration-300 ease-in ${isLoading ? iconSizeLoadingClass : iconSizeClass}`}>
+        <div className={`flex items-center transition-all duration-200 ease-ios ${isLoading ? 'mt-18' : 'flex-col'} ${isLoading ? 'gap-2' : ''}`}>
+          <div className={`transition-all duration-200 ease-ios ${isLoading ? iconSizeLoadingClass : iconSizeClass}`}>
             <img src={website.icon} alt={`${website.name} icon`} className={`object-contain w-full h-full`} />
           </div>
-          <span className={`text-slate-100 font-medium text-base tracking-wide text-center transition-all duration-300 ease-in ${isLoading ? 'text-sm' : ''}`}>
+          <span className={`text-slate-100 font-medium text-base tracking-wide text-center transition-all duration-200 ease-ios ${isLoading ? 'text-sm' : ''}`}>
             {website.name}
           </span>
         </div>

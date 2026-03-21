@@ -81,7 +81,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
     setIsVisible(false);
     setTimeout(() => {
       onClose();
-    }, 300);
+    }, 250);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: string | string[] } }) => {
@@ -241,7 +241,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-in-out ${
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-250 ease-ios ${
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={handleClose}
@@ -249,7 +249,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
 
       <div
         ref={menuRef}
-        className={`fixed top-0 right-0 h-full w-full max-w-lg bg-black/50 backdrop-blur-xl border-l border-white/10 text-white flex flex-col transition-transform duration-300 ease-in-out transform ${
+        className={`fixed top-0 right-0 h-full w-full max-w-lg bg-black/50 backdrop-blur-xl border-l border-white/10 text-white flex flex-col transition-transform duration-300 ease-spring transform ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -642,10 +642,10 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
         </div>
         <div className="p-8 border-t border-white/10">
             <div className="flex justify-end gap-4">
-                <button onClick={() => { isSaving.current = true; onSave(config); }} className="bg-green-500 hover:bg-green-400 text-white font-bold py-2 px-6 rounded-lg">
+                <button onClick={() => { isSaving.current = true; onSave(config); }} className="bg-green-500 hover:bg-green-400 active:scale-95 text-white font-bold py-2 px-6 rounded-lg transition-all duration-150 ease-ios">
                     Save & Close
                 </button>
-                <button onClick={handleClose} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg">
+                <button onClick={handleClose} className="bg-gray-600 hover:bg-gray-500 active:scale-95 text-white font-bold py-2 px-6 rounded-lg transition-all duration-150 ease-ios">
                     Cancel
                 </button>
             </div>

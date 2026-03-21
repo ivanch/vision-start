@@ -240,13 +240,13 @@ const App: React.FC = () => {
           />
         ))}
         {isEditing && (
-          <div className={`flex justify-center transition-all duration-300 ease-in-out transform ${isEditing ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}>
+          <div className={`flex justify-center transition-all duration-200 ease-ios transform ${isEditing ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}>
             <button
               onClick={() => {
                 setEditingCategory(null);
                 setIsCategoryModalOpen(true);
               }}
-              className="text-white/50 hover:text-white transition-colors"
+              className="text-white/50 hover:text-white active:scale-90 transition-all duration-150 ease-ios"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" className="bi bi-plus-circle" viewBox="0 0 16 16">
                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
