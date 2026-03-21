@@ -135,6 +135,6 @@ jobs:
           key: ${{ secrets.KEY }}
           port: ${{ secrets.PORT }}
           script: |
-            cd ${{ secrets.DIR }}
+            cd ${{ secrets.PROD_DIR }}
             docker compose pull
             docker compose up -d --force-recreate
