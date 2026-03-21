@@ -5,6 +5,12 @@ on:
     tags:
       - v*
 
+env:
+  REGISTRY_HOST: git.ivanch.me
+  REGISTRY_USERNAME: ivanch
+  IMAGE_NAME: ${{ env.REGISTRY_HOST }}/ivanch/vision-start
+  IMAGE_TAG: latest
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,7 +26,7 @@ jobs:
       - name: Run build
         run: npm run build
       - name: Prepare release
-        run: | 
+        run: |
           bash scripts/prepare_release.sh
           mv dist vision-start/
           mv manifest.json vision-start/
@@ -55,15 +61,15 @@ jobs:
         run: |
           # Run the VirusTotal check script and capture output
           bash scripts/check_virustotal.sh > vt_output.txt 2>&1
-          
+
           # Extract analysis URL and detection ratio from output
           ANALYSIS_URL=$(grep "Analysis URL:" vt_output.txt | cut -d' ' -f3- || echo "Not available")
           DETECTION_RATIO=$(grep "Detection ratio:" vt_output.txt | cut -d' ' -f3- || echo "Not available")
-          
+
           # Set outputs for next job
           echo "analysis-url=$ANALYSIS_URL" >> $GITEA_OUTPUT
           echo "detection-ratio=$DETECTION_RATIO" >> $GITEA_OUTPUT
-          
+
           # Display the full output
           cat vt_output.txt
 
@@ -82,9 +88,53 @@ jobs:
         with:
           body: |
             This is the release for version ${{ gitea.ref_name }}.
-            
+
             **Virus Total Analysis URL:** ${{ needs.virus-total-check.outputs.analysis-url }}
             **Virus Total Detection Ratio:** ${{ needs.virus-total-check.outputs.detection-ratio }}
           name: ${{ gitea.ref_name }}
           tag_name: ${{ gitea.ref_name }}
           files: vision-start-${{ gitea.ref_name }}.zip
+
+  build_vision_start:
+    name: Build Vision Start Image
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Log in to Container Registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" \
+            | docker login "${{ env.REGISTRY_HOST }}" \
+                -u "${{ env.REGISTRY_USERNAME }}" \
+                --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Multi-Arch Image
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          context: .
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+  deploy_vision_start:
+    name: Deploy Vision Start (production)
+    runs-on: ubuntu-amd64
+    needs: build_vision_start
+    steps:
+      - name: Recreate Container
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            cd ${{ secrets.DIR }}
+            docker compose pull
+            docker compose up -d --force-recreate
