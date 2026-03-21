@@ -11,12 +11,12 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange }) => {
   };
 
   return (
-    <div 
-      className={`w-14 h-8 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${checked ? 'bg-cyan-500' : 'bg-gray-600'}`}
+    <div
+      className={`w-14 h-8 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ease-ios ${checked ? 'bg-cyan-500' : 'bg-gray-600'}`}
       onClick={handleToggle}
     >
-      <div 
-        className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ${checked ? 'translate-x-6' : 'translate-x-0'}`}
+      <div
+        className={`bg-white w-6 h-6 rounded-full shadow-md transform transition-transform duration-200 ease-spring ${checked ? 'translate-x-6' : 'translate-x-0'}`}
       />
     </div>
   );

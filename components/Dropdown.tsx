@@ -79,7 +79,7 @@ const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, mul
       >
         <span className="truncate">{selectedOptionLabel}</span>
         <svg
-          className={`w-5 h-5 transition-transform duration-300 ease-in-out ${isOpen ? 'rotate-180' : 'rotate-0'}`}
+          className={`w-5 h-5 transition-transform duration-200 ease-ios ${isOpen ? 'rotate-180' : 'rotate-0'}`}
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
           fill="currentColor"
@@ -95,14 +95,14 @@ const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, mul
 
       {isOpen && (
         <ul
-          className="absolute z-10 mt-1 w-full bg-black/70 backdrop-blur-xl border border-white/20 rounded-lg shadow-2xl overflow-hidden animate-in slide-in-from-top-2 fade-in duration-200"
+          className="absolute z-10 mt-1 w-full bg-black/70 backdrop-blur-xl border border-white/20 rounded-lg shadow-2xl overflow-hidden animate-in slide-in-from-top-2 fade-in duration-150"
           role="listbox"
         >
           {options.map((option) => (
             <li
               key={option.value}
               onClick={() => handleOptionClick(option.value)}
-              className={`h-10 px-3 text-white cursor-pointer transition-all duration-150 ease-in-out flex items-center
+              className={`h-10 px-3 text-white cursor-pointer transition-all duration-150 ease-ios flex items-center
                 ${
                   isSelected(option.value)
                     ? 'bg-cyan-500/20 text-cyan-300'

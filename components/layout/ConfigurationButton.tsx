@@ -9,7 +9,7 @@ const ConfigurationButton: React.FC<ConfigurationButtonProps> = ({ onClick }) =>
     <div className="absolute top-4 right-4">
       <button
         onClick={onClick}
-        className="bg-black/25 backdrop-blur-md border border-white/10 rounded-xl p-3 text-white flex items-center gap-2 hover:bg-white/25 transition-colors"
+        className="bg-black/25 backdrop-blur-md border border-white/10 rounded-xl p-3 text-white flex items-center gap-2 hover:bg-white/25 active:scale-90 transition-all duration-200 ease-ios"
       >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" fill="none"/>
