@@ -97,8 +97,8 @@ jobs:
 
   build_vision_start:
     name: Build Vision Start Image
-    runs-on: ubuntu-22.04
-    needs: build
+    runs-on: ubuntu-amd64
+    needs: [build, virus-total-check]
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
