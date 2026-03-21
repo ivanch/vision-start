@@ -124,7 +124,7 @@ jobs:
 
   deploy_vision_start:
     name: Deploy Vision Start (production)
-    runs-on: ubuntu-amd64
+    runs-on: ubuntu-latest
     needs: build_vision_start
     steps:
       - name: Recreate Container
