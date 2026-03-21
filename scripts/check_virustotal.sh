@@ -9,7 +9,7 @@ set -e
 # Configuration
 FILE_PATH="${VIRUS_TOTAL_FILE:-vision-start.zip}"
 API_KEY="${virustotal_apikey}"
-BASE_URL="https://www.virustotal.com/vtapi/v2"
+BASE_URL="https://www.virustotal.com/api/v3"
 
 # Check if API key is set
 if [ -z "$API_KEY" ]; then
@@ -38,12 +38,12 @@ echo "Uploading $FILE_PATH to VirusTotal for analysis..."
 
 # Upload file to VirusTotal
 UPLOAD_RESPONSE=$(curl -s -X POST \
-    -F "apikey=$API_KEY" \
+    -H "x-apikey: $API_KEY" \
     -F "file=@$FILE_PATH" \
-    "$BASE_URL/file/scan")
+    "$BASE_URL/files")
 
 # Extract scan_id from response
-SCAN_ID=$(echo "$UPLOAD_RESPONSE" | jq -r '.scan_id')
+SCAN_ID=$(echo "$UPLOAD_RESPONSE" | jq -r '.data.id')
 
 if [ "$SCAN_ID" == "null" ] || [ -z "$SCAN_ID" ]; then
     echo "Error: Failed to upload file or get scan ID"
@@ -63,40 +63,40 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
     echo "Checking analysis status (attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS)..."
 
     # Get scan report
-    REPORT_RESPONSE=$(curl -s -X POST \
-        -d "apikey=$API_KEY" \
-        -d "resource=$SCAN_ID" \
-        "$BASE_URL/file/report")
+    REPORT_RESPONSE=$(curl -s -X GET \
+        -H "x-apikey: $API_KEY" \
+        "$BASE_URL/analyses/$SCAN_ID")
 
     # Check if analysis is complete
-    RESPONSE_CODE=$(echo "$REPORT_RESPONSE" | jq -r '.response_code')
+    RESPONSE_CODE=$(echo "$REPORT_RESPONSE" | jq -r '.data.attributes.status')
 
-    if [ "$RESPONSE_CODE" == "1" ]; then
+    if [ "$RESPONSE_CODE" == "completed" ]; then
         # Analysis complete
         echo "Analysis completed!"
 
         # Extract results
-        POSITIVES=$(echo "$REPORT_RESPONSE" | jq -r '.positives')
-        TOTAL=$(echo "$REPORT_RESPONSE" | jq -r '.total')
-        PERMALINK=$(echo "$REPORT_RESPONSE" | jq -r '.permalink')
+        POSITIVES=$(echo "$REPORT_RESPONSE" | jq -r '.data.attributes.stats.malicious')
+        SUSPICIOUS=$(echo "$REPORT_RESPONSE" | jq -r '.data.attributes.stats.suspicious')
+        # The v3 analyses object has no 'total' field — compute it by summing all stat categories
+        TOTAL=$(echo "$REPORT_RESPONSE" | jq '[.data.attributes.stats | to_entries[].value] | add')
+        ANALYSIS_ID=$(echo "$REPORT_RESPONSE" | jq -r '.data.id')
+        PERMALINK="https://www.virustotal.com/gui/file-analysis/${ANALYSIS_ID}"
 
         echo "Analysis URL: $PERMALINK"
         echo "Detection ratio: $POSITIVES/$TOTAL"
 
         # Check if file is safe
-        if [ "$POSITIVES" -eq 0 ]; then
+        if [ "$POSITIVES" -eq 0 ] && [ "$SUSPICIOUS" -eq 0 ]; then
             echo "✅ File is clean (no threats detected)"
             exit 0
         else
-            echo "❌ File contains threats ($POSITIVES detections out of $TOTAL scanners)"
+            echo "❌ File flagged: $POSITIVES malicious, $SUSPICIOUS suspicious (out of $TOTAL scanners)"
             exit 1
         fi
-    elif [ "$RESPONSE_CODE" == "0" ]; then
-        # File not found or analysis not complete yet
-        echo "Analysis still in progress..."
-    elif [ "$RESPONSE_CODE" == "-2" ]; then
-        # Still queued for analysis
+    elif [ "$RESPONSE_CODE" == "queued" ]; then
         echo "File still queued for analysis..."
+    elif [ "$RESPONSE_CODE" == "in-progress" ]; then
+        echo "Analysis still in progress..."
     else
         echo "Unexpected response code: $RESPONSE_CODE"
         echo "Response: $REPORT_RESPONSE"
