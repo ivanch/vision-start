@@ -7,6 +7,26 @@ import Dropdown from './Dropdown';
 import { baseWallpapers } from './utils/baseWallpapers';
 import { addWallpaperToChromeStorageLocal, removeWallpaperFromChromeStorageLocal, checkChromeStorageLocalAvailable } from './utils/StorageLocalManager';
 
+const REQUIRED_LOCAL_STORAGE_KEYS = ['config', 'categories', 'userWallpapers', 'wallpaperState'] as const;
+
+type RequiredLocalStorageKey = typeof REQUIRED_LOCAL_STORAGE_KEYS[number];
+
+const safeParse = (value: string | null): unknown => {
+  if (value === null) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
+const toStorageString = (value: unknown): string => {
+  return typeof value === 'string' ? value : JSON.stringify(value);
+};
+
 interface ConfigurationModalProps {
   onClose: () => void;
   onSave: (config: any) => void;
@@ -51,6 +71,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
   const [chromeStorageAvailable, setChromeStorageAvailable] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const isSaving = useRef(false);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -233,6 +254,86 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
     } catch (error) {
       alert('Error deleting wallpaper. Please try again.');
       console.error(error);
+    }
+  };
+
+  const handleExportConfig = () => {
+    const exportPayload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      requiredLocalStorageKeys: [...REQUIRED_LOCAL_STORAGE_KEYS],
+      localStorage: REQUIRED_LOCAL_STORAGE_KEYS.reduce((acc, key) => {
+        acc[key] = safeParse(localStorage.getItem(key));
+        return acc;
+      }, {} as Record<RequiredLocalStorageKey, unknown>),
+    };
+
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `vision-start-config-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportClick = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportConfig = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const fileContent = await file.text();
+      const parsed = JSON.parse(fileContent);
+      const localStorageData = parsed?.localStorage && typeof parsed.localStorage === 'object'
+        ? parsed.localStorage
+        : parsed;
+
+      if (!localStorageData || typeof localStorageData !== 'object') {
+        throw new Error('Invalid import file format.');
+      }
+
+      let importedAny = false;
+
+      REQUIRED_LOCAL_STORAGE_KEYS.forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(localStorageData, key)) {
+          const rawValue = (localStorageData as Record<string, unknown>)[key];
+          localStorage.setItem(key, toStorageString(rawValue));
+          importedAny = true;
+        }
+      });
+
+      if (!importedAny) {
+        throw new Error(`No required keys found. Expected: ${REQUIRED_LOCAL_STORAGE_KEYS.join(', ')}`);
+      }
+
+      const importedConfig = (localStorageData as Record<string, unknown>).config;
+      const importedUserWallpapers = (localStorageData as Record<string, unknown>).userWallpapers;
+
+      if (importedConfig && typeof importedConfig === 'object') {
+        setConfig(importedConfig as typeof config);
+        onWallpaperChange({ currentWallpapers: (importedConfig as { currentWallpapers?: string[] }).currentWallpapers || [] });
+        onSave(importedConfig);
+      }
+
+      if (Array.isArray(importedUserWallpapers)) {
+        setUserWallpapers(importedUserWallpapers as Wallpaper[]);
+      }
+
+      alert('Configuration imported successfully. The page will reload to apply all data.');
+      window.location.reload();
+    } catch (error) {
+      alert('Could not import configuration. Please use a valid export JSON file.');
+      console.error(error);
+    } finally {
+      event.target.value = '';
     }
   };
 
@@ -641,13 +742,30 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({ onClose, onSave
           )}
         </div>
         <div className="p-8 border-t border-white/10">
-            <div className="flex justify-end gap-4">
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex gap-2">
+                    <button onClick={handleExportConfig} className="bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-sm font-semibold py-1.5 px-3 rounded-lg transition-all duration-150 ease-ios">
+                        Export
+                    </button>
+                    <button onClick={handleImportClick} className="bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-sm font-semibold py-1.5 px-3 rounded-lg transition-all duration-150 ease-ios">
+                        Import
+                    </button>
+                    <input
+                      ref={importInputRef}
+                      type="file"
+                      accept="application/json"
+                      className="hidden"
+                      onChange={handleImportConfig}
+                    />
+                </div>
+                <div className="flex justify-end gap-4">
                 <button onClick={() => { isSaving.current = true; onSave(config); }} className="bg-green-500 hover:bg-green-400 active:scale-95 text-white font-bold py-2 px-6 rounded-lg transition-all duration-150 ease-ios">
                     Save & Close
                 </button>
                 <button onClick={handleClose} className="bg-gray-600 hover:bg-gray-500 active:scale-95 text-white font-bold py-2 px-6 rounded-lg transition-all duration-150 ease-ios">
                     Cancel
                 </button>
+                </div>
             </div>
         </div>
       </div>
