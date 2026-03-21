@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20 AS builder
 
 # Set working directory
 WORKDIR /app
@@ -13,6 +13,9 @@ RUN npm install
 # Copy the rest of the application
 COPY . .
 
+# Run prepare scripts to fetch required assets
+RUN sh scripts/prepare_release.sh
+
 # Build the application
 RUN npm run build
 
@@ -21,6 +24,9 @@ FROM nginx:alpine
 
 # Copy the built application from the builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy the manifest.json
+COPY manifest.json /usr/share/nginx/html/
 
 # Expose port 80
 EXPOSE 80
