@@ -10,35 +10,41 @@ interface WallpaperProps {
   brightness: number;
   opacity: number;
   wallpaperFrequency: string;
+  wallpaperVersion: number;
 }
 
 const getWallpaperUrlByName = async (name: string): Promise<string | undefined> => {
+  if (!name) return undefined;
   const foundInBase = baseWallpapers.find((w: WallpaperType) => w.name === name);
   if (foundInBase) {
     return foundInBase.url || foundInBase.base64;
   }
 
-  const userWallpapers: WallpaperType[] = JSON.parse(localStorage.getItem('userWallpapers') || '[]');
-  const foundInUser = userWallpapers.find((w: WallpaperType) => w.name === name);
-  if (foundInUser) {
-    try {
-      const wallpaperData = await getWallpaperFromChromeStorageLocal(name);
-      if (wallpaperData && wallpaperData.startsWith('http')) {
-        return wallpaperData;
+  try {
+    const storedUserWallpapers: WallpaperType[] =
+      JSON.parse(localStorage.getItem('userWallpapers') || '[]');
+    const foundInUser = storedUserWallpapers.find((w: WallpaperType) => w.name === name);
+    if (foundInUser) {
+      try {
+        const wallpaperData = await getWallpaperFromChromeStorageLocal(name);
+        if (wallpaperData && wallpaperData.startsWith('http')) {
+          return wallpaperData;
+        }
+        return wallpaperData || undefined;
+      } catch (error) {
+        console.error('Error getting wallpaper from chrome storage', error);
+        return undefined;
       }
-      return wallpaperData || undefined;
-    } catch (error) {
-      console.error('Error getting wallpaper from chrome storage', error);
-      return undefined;
     }
+  } catch (error) {
+    console.error('Error reading userWallpapers from localStorage', error);
   }
 
   return undefined;
 };
 
-const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness, opacity, wallpaperFrequency }) => {
+const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness, opacity, wallpaperFrequency, wallpaperVersion }) => {
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
-  const [currentWallpaperIndex, setCurrentWallpaperIndex] = useState<number>(0);
 
   // Helper to parse wallpaperFrequency string to ms
   const parseFrequencyToMs = (freq: string): number => {
@@ -54,36 +60,61 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
 
   useEffect(() => {
     const updateWallpaper = async () => {
-      if (wallpaperNames.length === 0) return;
-      // Read wallpaperState from localStorage
+      if (wallpaperNames.length === 0) {
+        setImageUrl(undefined);
+        localStorage.setItem(
+          'wallpaperState',
+          JSON.stringify({ lastWallpaperChange: new Date().toISOString(), currentIndex: 0 }),
+        );
+        return;
+      }
+
       const wallpaperState = JSON.parse(localStorage.getItem('wallpaperState') || '{}');
-      const lastChange = wallpaperState.lastWallpaperChange ? new Date(wallpaperState.lastWallpaperChange).getTime() : 0;
+      const lastChange = wallpaperState.lastWallpaperChange
+        ? new Date(wallpaperState.lastWallpaperChange).getTime()
+        : 0;
       const now = Date.now();
       const freqMs = parseFrequencyToMs(wallpaperFrequency);
-      let currentIndex = typeof wallpaperState.currentIndex === 'number' ? wallpaperState.currentIndex : 0;
 
-      // If enough time has passed, pick a new wallpaper
-      if (now - lastChange >= freqMs) {
-        currentIndex = (currentIndex + 1) % wallpaperNames.length;
-        localStorage.setItem('wallpaperState', JSON.stringify({
-          lastWallpaperChange: new Date().toISOString(),
-          currentIndex
-        }));
-      } else {
-        // Keep currentIndex in sync with localStorage if not updating
-        localStorage.setItem('wallpaperState', JSON.stringify({
-          lastWallpaperChange: wallpaperState.lastWallpaperChange || new Date().toISOString(),
-          currentIndex
-        }));
+      let storedIndex =
+        typeof wallpaperState.currentIndex === 'number' ? wallpaperState.currentIndex : 0;
+      if (storedIndex < 0 || storedIndex >= wallpaperNames.length) storedIndex = 0;
+
+      const shouldRotate = now - lastChange >= freqMs;
+      let resolvedIndex = shouldRotate
+        ? (storedIndex + 1) % wallpaperNames.length
+        : storedIndex;
+
+      const tried = new Set<number>();
+      let resolvedUrl: string | undefined;
+
+      for (let i = 0; i < wallpaperNames.length; i++) {
+        if (tried.has(resolvedIndex)) break;
+        tried.add(resolvedIndex);
+        const url = await getWallpaperUrlByName(wallpaperNames[resolvedIndex]);
+        if (url) {
+          resolvedUrl = url;
+          break;
+        }
+        resolvedIndex = (resolvedIndex + 1) % wallpaperNames.length;
       }
-      setCurrentWallpaperIndex(currentIndex);
-      const wallpaperName = wallpaperNames[currentIndex];
-      const url = await getWallpaperUrlByName(wallpaperName);
-      setImageUrl(url);
+
+      const nextLastChange = shouldRotate
+        ? new Date().toISOString()
+        : wallpaperState.lastWallpaperChange || new Date().toISOString();
+
+      localStorage.setItem(
+        'wallpaperState',
+        JSON.stringify({
+          lastWallpaperChange: nextLastChange,
+          currentIndex: resolvedIndex,
+        }),
+      );
+
+      setImageUrl(resolvedUrl);
     };
     updateWallpaper();
-    // No timer, just run on render/dependency change
-  }, [wallpaperNames, wallpaperFrequency]);
+  }, [wallpaperNames, wallpaperFrequency, wallpaperVersion]);
 
   if (!imageUrl) return null;
 

@@ -31,6 +31,7 @@ const App: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [config, setConfig] = useState<Config>(() => ConfigurationService.loadConfig());
+  const [wallpaperVersion, setWallpaperVersion] = useState(0);
 
   useEffect(() => {
     ConfigurationService.saveConfig(config);
@@ -51,6 +52,27 @@ const App: React.FC = () => {
 
   const handleWallpaperChange = (newConfig: Partial<Config>) => {
     setConfig(prev => ({ ...prev, ...newConfig }));
+  };
+
+  const handleNextWallpaper = () => {
+    const names = config.currentWallpapers;
+    if (names.length === 0) return;
+    try {
+      const state = JSON.parse(localStorage.getItem('wallpaperState') || '{}');
+      const current = typeof state.currentIndex === 'number' ? state.currentIndex : 0;
+      const safeCurrent = current < 0 || current >= names.length ? 0 : current;
+      const nextIndex = (safeCurrent + 1) % names.length;
+      localStorage.setItem(
+        'wallpaperState',
+        JSON.stringify({
+          lastWallpaperChange: new Date().toISOString(),
+          currentIndex: nextIndex,
+        }),
+      );
+    } catch (error) {
+      console.error('Error advancing wallpaper state', error);
+    }
+    setWallpaperVersion(v => v + 1);
   };
 
   const handleSaveWebsite = (website: Partial<Website>) => {
@@ -185,6 +207,7 @@ const App: React.FC = () => {
         brightness={config.wallpaperBrightness}
         opacity={config.wallpaperOpacity}
         wallpaperFrequency={config.wallpaperFrequency}
+        wallpaperVersion={wallpaperVersion}
       />
       <EditButton isEditing={isEditing} onClick={() => setIsEditing(!isEditing)} />
       <ConfigurationButton onClick={() => setIsConfigModalOpen(true)} />
@@ -258,6 +281,7 @@ const App: React.FC = () => {
           onClose={() => setIsConfigModalOpen(false)}
           onSave={handleSaveConfig}
           onWallpaperChange={handleWallpaperChange}
+          onNextWallpaper={handleNextWallpaper}
         />
       )}
     </main>
