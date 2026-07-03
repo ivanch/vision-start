@@ -25,6 +25,18 @@ jobs:
       - name: Run build
         run: npm run build
 
+      - name: Package dist as zip
+        run: |
+          cd dist
+          zip -r ../vision-start-build.zip .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: vision-start-build
+          path: vision-start-build.zip
+          retention-days: 30
+
   build_vision_start:
     name: Build Vision Start Image
     runs-on: ubuntu-amd64
