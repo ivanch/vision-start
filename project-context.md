@@ -49,7 +49,7 @@ Entry points: `index.html` → `index.tsx` → `App.tsx`.
 
 The startpage is composed of widgets and a configuration panel:
 
-- **Website Tiles** — Bookmarks organized into categories. Each tile shows an icon + name and opens the configured URL. Tiles can be added, edited, deleted, and moved left/right across categories while in edit mode.
+- **Website Tiles** — Bookmarks organized into categories. Each tile shows an icon + name and opens the configured URL. Tiles can be added, edited, deleted, and moved left/right within their own category (reordering) while in edit mode.
 - **Categories** — Groupings of website tiles (e.g. "Search"). Add/edit/delete/name.
 - **Clock** — Optional header clock with selectable size, font, and 12h/24h format.
 - **Title** — Optional big header title (text + size configurable).
@@ -221,7 +221,7 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 ## 8. Notable Behaviors & Quirks
 
 - **`EditModal.tsx` has been removed.** It was a legacy drag-and-drop editor that imported non-existent `lucide-react` and `./IconPicker`; it was never wired into `App.tsx`. Use `WebsiteEditModal.tsx` / `CategoryEditModal.tsx` instead.
-- **`@hello-pangea/dnd`** is used only in `ServerWidgetTab.tsx` (server reorder), which itself is imported by the lazy-loaded `ConfigurationModal`, so it lives in a separate chunk and is absent from the initial page load. `WebsiteTile` moves tiles via simple left/right buttons, not drag-and-drop.
+- **`@hello-pangea/dnd`** is used only in `ServerWidgetTab.tsx` (server reorder), which itself is imported by the lazy-loaded `ConfigurationModal`, so it lives in a separate chunk and is absent from the initial page load. `WebsiteTile` moves tiles within their own category via simple left/right buttons (no cross-category movement), not drag-and-drop.
 - **Chrome storage is optional.** `StorageLocalManager` checks availability once (`checkChromeStorageLocalAvailable`) and caches it. When unavailable (e.g., running as a plain web page), wallpaper upload/delete flows are gated off and `addWallpaperToChromeStorageLocal` throws.
 - **Wallpaper rotation** is time-based, evaluated on render/mount rather than via a timer. It reads `wallpaperState` from `localStorage`, advances the index if the frequency window has elapsed, and writes it back. The renderer clamps `currentIndex` to the valid range of the current selection and walks the list forward to find a wallpaper whose data actually resolves (so deleting the currently-displayed wallpaper, or shrinking the selection, never leaves the background blank); if no wallpaper resolves, the background layer is hidden. When the selection becomes empty, `wallpaperState` is reset and the background is hidden. A manual "Next Wallpaper" button in the Theme tab advances `currentIndex` (with wraparound) and bumps a `wallpaperVersion` nonce in `App.tsx` that retriggers the renderer.
 - **Icon picker** in `WebsiteEditModal` loads `/icon-metadata.json` at runtime and expands each icon's `colors` into duplicate-name entries so color variants are searchable.
