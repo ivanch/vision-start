@@ -3,16 +3,17 @@ Vision Start
 </div>
 
 <div style="display: flex; justify-content: center; font-size: 1.5rem;">
-A glassmorphism-looking like, modern and customizable startpage built with React.
+A light liquid-glass, modern and customizable startpage built with React.
 </div>
 
 <span style="display: block; text-align: center; font-size: 1.2rem;">Try it here: <a href="http://vision-start.ivanch.me">http://vision-start.ivanch.me</a></span>
 
 ## Screenshots
 
-![Vision Start with the Dark background](screenshots/dark-page.png)
-![Editing page with Abstract Red background](screenshots/editing-abstract-red.png)
-![Configuration Tab opened](screenshots/configuration-abstract-red.png)
+![Vision Start liquid glass home](screenshots/liquid-home.png)
+![Vision Start liquid glass editing](screenshots/liquid-editing.png)
+![Vision Start liquid glass configuration](screenshots/liquid-configuration.png)
+![Vision Start liquid glass mobile](screenshots/liquid-mobile.png)
 
 ## Installing
 
@@ -30,7 +31,7 @@ Vision Start is not yet available on Chrome Web Store, but it can be installed m
 * **Customizable Website Tiles:** Add, edit, and organize your favorite websites for quick access.
 * **Elegant Clock:** A clock because all startpages have one.
 * **Server Status Widgets:** Monitor the status of services directly from the startpage.
-* **Glassmorphism UI:** A modern and stylish interface with a frosted glass effect.
+* **Liquid Glass UI:** A modern, light interface with frosted surfaces, soft highlights, and gentle motion.
 * **Icon Library:** It uses the [Dashboard Icon library](https://dashboardicons.com/) for a better look and feel. It also supports auto-fetch for some websites.
 * **Settings:** A settings page to configure the startpage, with export/import functionality.
 

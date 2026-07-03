@@ -56,9 +56,8 @@ const Clock: React.FC<ClockProps> = ({ config, getClockSizeClass }) => {
 
   return (
     <div
-      className={`text-white font-bold ${getClockSizeClass(config.clock.size)}`}
+      className={`liquid-clock-text whitespace-nowrap text-white font-bold ${getClockSizeClass(config.clock.size)}`}
       style={{
-        textShadow: '0 2px 4px rgba(0,0,0,0.5)',
         fontFamily: config.clock.font,
       }}
     >

@@ -55,7 +55,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Background</label>
         <Dropdown
           name="currentWallpapers"
@@ -66,7 +66,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
         />
       </div>
       {Array.isArray(config.currentWallpapers) && config.currentWallpapers.length > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <label className="text-slate-300 text-sm font-semibold">Change Frequency</label>
           <Dropdown
             name="wallpaperFrequency"
@@ -83,7 +83,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
           />
         </div>
       )}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Wallpaper Blur</label>
         <div className="flex items-center gap-4">
           <input
@@ -92,12 +92,12 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
             max="50"
             value={config.wallpaperBlur}
             onChange={(e) => onChange({ wallpaperBlur: Number(e.target.value) })}
-            className="w-48"
+            className="liquid-range"
           />
-          <span>{config.wallpaperBlur}px</span>
+          <span className="w-12 text-right text-sm text-slate-200">{config.wallpaperBlur}px</span>
         </div>
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Wallpaper Brightness</label>
         <div className="flex items-center gap-4">
           <input
@@ -106,12 +106,12 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
             max="200"
             value={config.wallpaperBrightness}
             onChange={(e) => onChange({ wallpaperBrightness: Number(e.target.value) })}
-            className="w-48"
+            className="liquid-range"
           />
-          <span>{config.wallpaperBrightness}%</span>
+          <span className="w-12 text-right text-sm text-slate-200">{config.wallpaperBrightness}%</span>
         </div>
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Wallpaper Opacity</label>
         <div className="flex items-center gap-4">
           <input
@@ -120,9 +120,9 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
             max="100"
             value={config.wallpaperOpacity}
             onChange={(e) => onChange({ wallpaperOpacity: Number(e.target.value) })}
-            className="w-48"
+            className="liquid-range"
           />
-          <span>{config.wallpaperOpacity}%</span>
+          <span className="w-12 text-right text-sm text-slate-200">{config.wallpaperOpacity}%</span>
         </div>
       </div>
       {chromeStorageAvailable && (
@@ -133,12 +133,13 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
               {userWallpapers.map((wallpaper) => (
                 <div
                   key={wallpaper.name}
-                  className="flex items-center justify-between bg-white/10 p-2 rounded-lg"
+                  className="liquid-surface flex items-center justify-between rounded-xl p-2.5"
                 >
                   <span className="truncate">{wallpaper.name}</span>
                   <button
                     onClick={() => onDeleteWallpaper(wallpaper)}
-                    className="text-red-500 hover:text-red-400"
+                    className="liquid-edit-action liquid-focus text-red-300 hover:text-red-100"
+                    aria-label={`Delete ${wallpaper.name}`}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -167,19 +168,19 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
                 placeholder="Wallpaper Name (optional for URLs)"
                 value={newWallpaperName}
                 onChange={(e) => setNewWallpaperName(e.target.value)}
-                className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                className="liquid-input p-2.5"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   type="text"
                   placeholder="Image URL"
                   value={newWallpaperUrl}
                   onChange={(e) => setNewWallpaperUrl(e.target.value)}
-                  className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  className="liquid-input p-2.5"
                 />
                 <button
                   onClick={handleAddWallpaper}
-                  className="bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-white font-bold py-2 px-4 rounded-lg transition-all duration-150 ease-ios"
+                  className="liquid-button liquid-button-primary liquid-focus py-2.5 px-4"
                 >
                   Add
                 </button>
@@ -187,7 +188,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
               <div className="flex items-center justify-center w-full">
                 <label
                   htmlFor="file-upload"
-                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-white/5 border-white/20 hover:bg-white/10"
+                  className="liquid-surface liquid-ghost-tile flex flex-col items-center justify-center w-full h-32 cursor-pointer transition-all duration-200 ease-ios"
                 >
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <svg
@@ -227,7 +228,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
         <button
           onClick={onNextWallpaper}
           disabled={config.currentWallpapers.length === 0}
-          className="flex items-center gap-2 bg-black/25 backdrop-blur-md border border-white/10 hover:bg-white/25 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-4 rounded-xl transition-all duration-150 ease-ios"
+          className="liquid-surface liquid-control liquid-focus disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-4 rounded-2xl"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

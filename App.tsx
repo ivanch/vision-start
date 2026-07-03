@@ -200,7 +200,7 @@ const App: React.FC = () => {
 
   return (
     <main
-      className={`min-h-screen w-full flex flex-col items-center ${getAlignmentClass(config.alignment)} p-4`}
+      className={`vision-shell min-h-screen w-full flex flex-col items-center ${getAlignmentClass(config.alignment)} px-4 py-8 sm:px-6 sm:py-10`}
     >
       <Wallpaper
         wallpaperNames={config.currentWallpapers}
@@ -215,7 +215,7 @@ const App: React.FC = () => {
 
       <Header config={config} />
 
-      <div className="flex flex-col gap-8 w-full mt-16">
+      <div className="relative z-10 flex flex-col gap-7 sm:gap-8 w-full mt-12 sm:mt-14">
         {categories.map((category) => (
           <CategoryGroup
             key={category.id}
@@ -238,12 +238,14 @@ const App: React.FC = () => {
                 setEditingCategory(null);
                 setIsCategoryModalOpen(true);
               }}
-              className="text-white/50 hover:text-white active:scale-90 transition-all duration-150 ease-ios"
+              className="liquid-surface liquid-control liquid-ghost-tile liquid-focus min-h-16 px-6 text-sm font-bold"
+              aria-label="Add category"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" className="bi bi-plus-circle" viewBox="0 0 16 16">
-                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
               </svg>
+              Add category
             </button>
           </div>
         )}

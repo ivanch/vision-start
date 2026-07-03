@@ -14,28 +14,30 @@ Guidance for AI agents (and humans) working on Vision Start. Read before making 
 
 ## 1. Styling guidance
 
-The design language is **glassmorphism**: translucent black surfaces, backdrop blur, thin light borders, subtle shadows, cyan accents, and iOS-like easing.
+The design language is **light liquid glass**: translucent bright surfaces, refractive edge highlights, backdrop blur, soft shadows, cyan accents, and iOS-like easing.
 
 ### Surface recipe (use consistently)
-- **Cards / modals / panels:** `bg-black/25 backdrop-blur-md border border-white/10 rounded-2xl shadow-lg`
-- **Inputs:** `bg-white/10 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400`
-- **Floating buttons (corner):** `bg-black/25 backdrop-blur-md border border-white/10 rounded-xl ... hover:bg-white/25 active:scale-90`
-- **Full-screen modal overlay:** `bg-black/90 backdrop-blur-sm` (modals) or `bg-black/60 backdrop-blur-sm` (drawers)
-- **Slide-in drawer:** `bg-black/50 backdrop-blur-xl border-l border-white/10`
+- **Tiles / floating controls / light surfaces:** `liquid-surface` plus `liquid-control` / `liquid-tile` / `liquid-focus` as appropriate.
+- **Cards / modals / panels:** `liquid-panel liquid-modal-card rounded-3xl` for centered modals; `liquid-drawer` for the settings drawer.
+- **Inputs:** `liquid-input p-3`; ranges use `liquid-range`.
+- **Buttons:** `liquid-button` plus one of `liquid-button-primary`, `liquid-button-success`, `liquid-button-secondary`, or `liquid-button-danger`.
+- **Add/edit surfaces:** add tiles use `liquid-ghost-tile`; tile edit controls use `liquid-edit-toolbar` and `liquid-edit-action`.
+- **Full-screen modal overlay:** `liquid-modal-backdrop`.
 
 ### Color tokens
-- Accent / focus / selection: `cyan-400` (focus ring), `cyan-500` (active/selected background)
-- Confirm/Save: `green-500` → `hover:bg-green-400`
-- Cancel/secondary: `gray-600` → `hover:bg-gray-500`
-- Destructive: `red-500` → `hover:bg-red-400`
-- Tertiary (export/import etc.): `slate-700` → `hover:bg-slate-600`
-- Status: online `bg-green-500`, offline `bg-red-500`, pending `bg-gray-500`
+- Accent / focus / selection: cyan via `liquid-focus`, `cyan-400`, `cyan-200`, and `liquid-button-primary`
+- Confirm/Save: `liquid-button-success`
+- Cancel/secondary: `liquid-button-secondary`
+- Destructive: `liquid-button-danger` or red text on `liquid-edit-action`
+- Tertiary (export/import etc.): `liquid-button-secondary`
+- Status: online `bg-green-400 text-green-400`, offline `bg-red-400 text-red-400`, pending `bg-slate-400 text-slate-400`
 - Text: primary `text-white`, secondary `text-slate-300`/`text-slate-400`, muted `text-white/50` (in-app hover states)
 
 ### Motion
-- Use the custom easing tokens defined in `index.css`: `ease-ios` (default) and `ease-spring` (toggle knobs, drawer slides).
-- Standard durations: `duration-150` (buttons), `duration-200` (tiles, toggles, icons), `duration-250`/`duration-300` (modals, drawers).
-- Micro-interactions are encouraged: `hover:scale-[1.04]`, `active:scale-90` / `active:scale-95` / `active:scale-[0.96]`, `hover:bg-white/25`.
+- Use the custom easing tokens defined in `index.css`: `ease-ios` (default), `ease-spring` (toggle knobs, drawer slides), and `ease-liquid` (tile lift and wallpaper transitions).
+- Standard durations: `duration-150` (buttons), `duration-200` (tiles, toggles, icons), and `duration-300` (drawers/modals).
+- Prefer the shared liquid classes for hover/press motion. Add custom transforms only when the shared classes do not cover the interaction.
+- Keep `prefers-reduced-motion` behavior intact when adding animations.
 
 ### Tailwind specifics
 - Tailwind **v4** via `@tailwindcss/vite` and `@tailwindcss/postcss`. Custom easing is in `index.css` under `@theme {}` — add new theme tokens there, not in `tailwind.config.js`.
@@ -45,7 +47,7 @@ The design language is **glassmorphism**: translucent black surfaces, backdrop b
 ### Components with established conventions to reuse
 - `Dropdown` (`components/Dropdown.tsx`) for selects — single or multi. Has a glassy look and custom arrow. **Always use it** instead of `<select>`/`<input type=...>` for option picking.
 - `ToggleSwitch` (`components/ToggleSwitch.tsx`) for boolean toggles — **always use it** instead of checkboxes.
-- Modal pattern: backdrop + centered glass card (`bg-black/25 backdrop-blur-md border border-white/10 rounded-2xl`), close on overlay click via `handleOverlayClick` (`if (e.target === e.currentTarget) onClose()`).
+- Modal pattern: `liquid-modal-backdrop` + centered `liquid-panel liquid-modal-card rounded-3xl`, close on overlay click via `handleOverlayClick` (`if (e.target === e.currentTarget) onClose()`).
 - New editors/settings go in `components/configuration/` as a `*Tab.tsx` and are wired into `ConfigurationModal.tsx`.
 - New options' size presets follow the existing scale: `tiny | small | medium | large` (see `Header.tsx`, `WebsiteTile.tsx`).
 
@@ -83,7 +85,7 @@ A "feature" in this project typically means: a new widget, a new settings option
 12. If a new field changes behavior in a way that existing users' stored data should be preserved differently, handle the migration inside `loadConfig` (and consider bumping the export `version` field in `exportConfig` if the shape changes non-additively).
 
 ### G. Style of new tiles/widgets
-13. A new widget should follow the existing widget shape: optional/gated by `config.<feature>.enabled`, positioned with a glass container, and use the surface/duration/easing tokens above.
+13. A new widget should follow the existing widget shape: optional/gated by `config.<feature>.enabled`, positioned with a liquid glass container, and use the surface/duration/easing tokens above.
 14. New "editable" tiles/content reuse the `isEditing` mode and the edit/move/delete affordances pattern from `WebsiteTile.tsx` and `CategoryGroup.tsx`.
 
 ---
@@ -108,6 +110,6 @@ A "feature" in this project typically means: a new widget, a new settings option
 
 - Read `project-context.md`.
 - Mirror the nearest existing equivalent (a similar widget, modal, or config tab) before inventing a new pattern.
-- Favor the established glass tokens (`bg-black/25`, `backdrop-blur-md`, `border-white/10`, `cyan-400/500`) over ad-hoc colors.
+- Favor the established liquid utilities (`liquid-surface`, `liquid-panel`, `liquid-input`, `liquid-button`, `liquid-focus`) over ad-hoc glass class strings.
 - Surface failing assumptions (CORS, missing chrome.storage, larger-than-4MB wallpapers) with clear errors, matching the style of `StorageLocalManager.ts` and `iconService.ts`.
 - Update `project-context.md` after your change.

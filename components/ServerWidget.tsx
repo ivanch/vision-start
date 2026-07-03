@@ -15,11 +15,11 @@ interface ServerWidgetProps {
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'online':
-      return 'bg-green-500';
+      return 'bg-green-400 text-green-400';
     case 'offline':
-      return 'bg-red-500';
+      return 'bg-red-400 text-red-400';
     default:
-      return 'bg-gray-500';
+      return 'bg-slate-400 text-slate-400';
   }
 };
 
@@ -71,13 +71,11 @@ const ServerWidget: React.FC<ServerWidgetProps> = ({ config }) => {
   }
 
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-auto max-w-full">
-      <div className="flex items-center gap-4 bg-black/25 backdrop-blur-md border border-white/20 px-4 py-2 shadow-lg"
-        style={{ borderBottomLeftRadius: '0', borderBottomRightRadius: '0', borderTopLeftRadius: '16px', borderTopRightRadius: '15px', borderBottomWidth: '0' }}
-      >
+    <div className="fixed bottom-3 left-1/2 z-20 w-auto max-w-[calc(100%-1.5rem)] -translate-x-1/2">
+      <div className="liquid-surface flex items-center gap-4 rounded-full px-4 py-2">
         {config.serverWidget.servers.map((server) => (
           <div key={server.id} className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${getStatusColor(serverStatus[server.id])}`}></div>
+            <div className={`liquid-status-dot w-2.5 h-2.5 rounded-full ${getStatusColor(serverStatus[server.id])}`}></div>
             <span className="text-slate-100 text-sm font-medium">
               {server.name}
             </span>

@@ -128,17 +128,18 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
   if (!imageUrl) return null;
 
   return (
-    <div
-      className="fixed inset-0 -z-10 w-full h-full wallpaper-transition"
-      style={{
-        backgroundImage: `url(${imageUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        filter: `blur(${blur}px) brightness(${brightness / 100})`,
-        opacity: opacity / 100,
-      }}
-      aria-label="Wallpaper background"
-    />
+    <>
+      <div
+        className="wallpaper-layer wallpaper-transition"
+        style={{
+          backgroundImage: `url(${imageUrl})`,
+          filter: `blur(${blur}px) brightness(${brightness / 100})`,
+          opacity: opacity / 100,
+        }}
+        aria-label="Wallpaper background"
+      />
+      <div className="wallpaper-luminance" aria-hidden="true" />
+    </>
   );
 };
 

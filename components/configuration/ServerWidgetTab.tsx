@@ -44,7 +44,7 @@ const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) =
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Enable Server Widget</label>
         <ToggleSwitch
           checked={config.serverWidget.enabled}
@@ -53,7 +53,7 @@ const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) =
       </div>
       {config.serverWidget.enabled && (
         <>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <label className="text-slate-300 text-sm font-semibold">Ping Frequency</label>
             <div className="flex items-center gap-4">
               <input
@@ -62,9 +62,9 @@ const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) =
                 max="60"
                 value={config.serverWidget.pingFrequency}
                 onChange={(e) => updateServerWidget({ pingFrequency: Number(e.target.value) })}
-                className="w-48"
+                className="liquid-range"
               />
-              <span>{config.serverWidget.pingFrequency}s</span>
+              <span className="w-12 text-right text-sm text-slate-200">{config.serverWidget.pingFrequency}s</span>
             </div>
           </div>
           <div>
@@ -84,7 +84,7 @@ const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) =
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className="flex items-center justify-between bg-white/10 p-2 rounded-lg"
+                            className="liquid-surface flex items-center justify-between rounded-xl p-3"
                           >
                             <div>
                               <p className="font-semibold">{server.name}</p>
@@ -92,7 +92,8 @@ const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) =
                             </div>
                             <button
                               onClick={() => handleRemoveServer(server.id)}
-                              className="text-red-500 hover:text-red-400"
+                              className="liquid-edit-action liquid-focus text-red-300 hover:text-red-100"
+                              aria-label={`Remove ${server.name}`}
                             >
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -118,24 +119,24 @@ const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) =
                 )}
               </Droppable>
             </DragDropContext>
-            <div className="flex gap-2 mt-2">
+            <div className="flex flex-col gap-2 mt-3 sm:flex-row">
               <input
                 type="text"
                 placeholder="Server Name"
                 value={newServerName}
                 onChange={(e) => setNewServerName(e.target.value)}
-                className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                className="liquid-input p-2.5"
               />
               <input
                 type="text"
                 placeholder="HTTP Address"
                 value={newServerAddress}
                 onChange={(e) => setNewServerAddress(e.target.value)}
-                className="bg-white/10 p-2 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                className="liquid-input p-2.5"
               />
               <button
                 onClick={handleAddServer}
-                className="bg-cyan-500 hover:bg-cyan-400 text-white font-bold py-2 px-4 rounded-lg"
+                className="liquid-button liquid-button-primary liquid-focus py-2.5 px-4"
               >
                 Add
               </button>

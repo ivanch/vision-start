@@ -9,11 +9,11 @@ type RequiredLocalStorageKey = typeof REQUIRED_LOCAL_STORAGE_KEYS[number];
 
 export const DEFAULT_CONFIG: Config = {
   title: 'Vision Start',
-  currentWallpapers: ['Abstract'],
+  currentWallpapers: ['Beach'],
   wallpaperFrequency: '1d',
   wallpaperBlur: 0,
-  wallpaperBrightness: 100,
-  wallpaperOpacity: 100,
+  wallpaperBrightness: 108,
+  wallpaperOpacity: 96,
   titleSize: 'medium',
   alignment: 'middle',
   horizontalAlignment: 'middle',

@@ -16,10 +16,10 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ config, onChange }) => {
           type="text"
           value={config.title}
           onChange={(e) => onChange({ title: e.target.value })}
-          className="bg-white/10 p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          className="liquid-input p-3"
         />
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Title Size</label>
         <Dropdown
           name="titleSize"
@@ -33,7 +33,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ config, onChange }) => {
           ]}
         />
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Vertical Alignment</label>
         <Dropdown
           name="alignment"
@@ -46,7 +46,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ config, onChange }) => {
           ]}
         />
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Tile Size</label>
         <Dropdown
           name="tileSize"
@@ -59,7 +59,7 @@ const GeneralTab: React.FC<GeneralTabProps> = ({ config, onChange }) => {
           ]}
         />
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Horizontal Alignment</label>
         <Dropdown
           name="horizontalAlignment"
