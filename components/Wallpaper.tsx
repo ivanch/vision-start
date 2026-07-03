@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { baseWallpapers } from './utils/baseWallpapers';
 import { Wallpaper as WallpaperType } from '../types';
 import { getWallpaperFromChromeStorageLocal } from './utils/StorageLocalManager';
@@ -13,50 +13,58 @@ interface WallpaperProps {
   wallpaperVersion: number;
 }
 
+const parseFrequencyToMs = (freq: string): number => {
+  if (!freq) return 24 * 60 * 60 * 1000; // default 1 day
+  const match = freq.match(/(\d+)(h|d)/);
+  if (!match) return 24 * 60 * 60 * 1000;
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  if (unit === 'h') return value * 60 * 60 * 1000;
+  if (unit === 'd') return value * 24 * 60 * 60 * 1000;
+  return 24 * 60 * 60 * 1000;
+};
+
+const wallpaperUrlCache = new Map<string, string | undefined>();
+
 const getWallpaperUrlByName = async (name: string): Promise<string | undefined> => {
   if (!name) return undefined;
+  if (wallpaperUrlCache.has(name)) return wallpaperUrlCache.get(name);
+
+  let resolved: string | undefined;
   const foundInBase = baseWallpapers.find((w: WallpaperType) => w.name === name);
   if (foundInBase) {
-    return foundInBase.url || foundInBase.base64;
-  }
-
-  try {
-    const storedUserWallpapers: WallpaperType[] =
-      JSON.parse(localStorage.getItem('userWallpapers') || '[]');
-    const foundInUser = storedUserWallpapers.find((w: WallpaperType) => w.name === name);
-    if (foundInUser) {
-      try {
-        const wallpaperData = await getWallpaperFromChromeStorageLocal(name);
-        if (wallpaperData && wallpaperData.startsWith('http')) {
-          return wallpaperData;
+    resolved = foundInBase.url || foundInBase.base64;
+  } else {
+    try {
+      const storedUserWallpapers: WallpaperType[] =
+        JSON.parse(localStorage.getItem('userWallpapers') || '[]');
+      const foundInUser = storedUserWallpapers.find((w: WallpaperType) => w.name === name);
+      if (foundInUser) {
+        try {
+          const wallpaperData = await getWallpaperFromChromeStorageLocal(name);
+          if (wallpaperData && wallpaperData.startsWith('http')) {
+            resolved = wallpaperData;
+          } else {
+            resolved = wallpaperData || undefined;
+          }
+        } catch (error) {
+          console.error('Error getting wallpaper from chrome storage', error);
+          resolved = undefined;
         }
-        return wallpaperData || undefined;
-      } catch (error) {
-        console.error('Error getting wallpaper from chrome storage', error);
-        return undefined;
       }
+    } catch (error) {
+      console.error('Error reading userWallpapers from localStorage', error);
+      resolved = undefined;
     }
-  } catch (error) {
-    console.error('Error reading userWallpapers from localStorage', error);
   }
 
-  return undefined;
+  wallpaperUrlCache.set(name, resolved);
+  return resolved;
 };
 
 const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness, opacity, wallpaperFrequency, wallpaperVersion }) => {
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
-
-  // Helper to parse wallpaperFrequency string to ms
-  const parseFrequencyToMs = (freq: string): number => {
-    if (!freq) return 24 * 60 * 60 * 1000; // default 1 day
-    const match = freq.match(/(\d+)(h|d)/);
-    if (!match) return 24 * 60 * 60 * 1000;
-    const value = parseInt(match[1], 10);
-    const unit = match[2];
-    if (unit === 'h') return value * 60 * 60 * 1000;
-    if (unit === 'd') return value * 24 * 60 * 60 * 1000;
-    return 24 * 60 * 60 * 1000;
-  };
+  const resolvedRef = useRef(false);
 
   useEffect(() => {
     const updateWallpaper = async () => {
@@ -111,6 +119,7 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
         }),
       );
 
+      resolvedRef.current = true;
       setImageUrl(resolvedUrl);
     };
     updateWallpaper();
@@ -120,14 +129,13 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
 
   return (
     <div
-      className="fixed inset-0 -z-10 w-full h-full"
+      className="fixed inset-0 -z-10 w-full h-full wallpaper-transition"
       style={{
         backgroundImage: `url(${imageUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         filter: `blur(${blur}px) brightness(${brightness / 100})`,
         opacity: opacity / 100,
-        transition: 'filter 0.3s, opacity 0.3s',
       }}
       aria-label="Wallpaper background"
     />

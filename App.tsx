@@ -1,16 +1,43 @@
-import { useState, useEffect } from 'react';
-import ConfigurationModal from './components/ConfigurationModal';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import ServerWidget from './components/ServerWidget';
 import { DEFAULT_CATEGORIES } from './constants';
 import { Category, Website, Config } from './types';
-import WebsiteEditModal from './components/WebsiteEditModal';
-import CategoryEditModal from './components/CategoryEditModal';
 import Header from './components/layout/Header';
 import EditButton from './components/layout/EditButton';
 import ConfigurationButton from './components/layout/ConfigurationButton';
 import CategoryGroup from './components/layout/CategoryGroup';
 import Wallpaper from './components/Wallpaper';
 import { ConfigurationService } from './components/services/ConfigurationService';
+
+const ConfigurationModal = lazy(() => import('./components/ConfigurationModal'));
+const WebsiteEditModal = lazy(() => import('./components/WebsiteEditModal'));
+const CategoryEditModal = lazy(() => import('./components/CategoryEditModal'));
+
+const getAlignmentClass = (alignment: string) => {
+  switch (alignment) {
+    case 'top':
+      return 'justify-start';
+    case 'middle':
+      return 'justify-center';
+    case 'bottom':
+      return 'justify-end';
+    default:
+      return 'justify-center';
+  }
+};
+
+const getHorizontalAlignmentClass = (alignment: string) => {
+  switch (alignment) {
+    case 'left':
+      return 'justify-start';
+    case 'middle':
+      return 'justify-center';
+    case 'right':
+      return 'justify-end';
+    default:
+      return 'justify-center';
+  }
+};
 
 const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(() => {
@@ -45,16 +72,16 @@ const App: React.FC = () => {
     }
   }, [categories]);
 
-  const handleSaveConfig = (newConfig: Config) => {
+  const handleSaveConfig = useCallback((newConfig: Config) => {
     setConfig(newConfig);
     setIsConfigModalOpen(false);
-  };
+  }, []);
 
-  const handleWallpaperChange = (newConfig: Partial<Config>) => {
+  const handleWallpaperChange = useCallback((newConfig: Partial<Config>) => {
     setConfig(prev => ({ ...prev, ...newConfig }));
-  };
+  }, []);
 
-  const handleNextWallpaper = () => {
+  const handleNextWallpaper = useCallback(() => {
     const names = config.currentWallpapers;
     if (names.length === 0) return;
     try {
@@ -73,9 +100,9 @@ const App: React.FC = () => {
       console.error('Error advancing wallpaper state', error);
     }
     setWallpaperVersion(v => v + 1);
-  };
+  }, [config.currentWallpapers]);
 
-  const handleSaveWebsite = (website: Partial<Website>) => {
+  const handleSaveWebsite = useCallback((website: Partial<Website>) => {
     if (editingWebsite) {
       const idToUpdate = website.id ?? editingWebsite.id;
       const newCategories = categories.map(category => ({
@@ -102,9 +129,9 @@ const App: React.FC = () => {
       setCategories(newCategories);
       setAddingWebsite(null);
     }
-  };
+  }, [editingWebsite, addingWebsite, categories]);
 
-  const handleSaveCategory = (name: string) => {
+  const handleSaveCategory = useCallback((name: string) => {
     if (editingCategory) {
       const newCategories = categories.map(category =>
         category.id === editingCategory.id ? { ...category, name } : category
@@ -120,9 +147,9 @@ const App: React.FC = () => {
     }
     setEditingCategory(null);
     setIsCategoryModalOpen(false);
-  };
+  }, [editingCategory, categories]);
 
-  const handleDeleteWebsite = () => {
+  const handleDeleteWebsite = useCallback(() => {
     if (!editingWebsite) return;
 
     const newCategories = categories.map(category => ({
@@ -131,18 +158,18 @@ const App: React.FC = () => {
     }));
     setCategories(newCategories);
     setEditingWebsite(null);
-  };
+  }, [editingWebsite, categories]);
 
-  const handleDeleteCategory = () => {
+  const handleDeleteCategory = useCallback(() => {
     if (!editingCategory) return;
 
     const newCategories = categories.filter(c => c.id !== editingCategory.id);
     setCategories(newCategories);
     setEditingCategory(null);
     setIsCategoryModalOpen(false);
-  };
+  }, [editingCategory, categories]);
 
-  const handleMoveWebsite = (website: Website, direction: 'left' | 'right') => {
+  const handleMoveWebsite = useCallback((website: Website, direction: 'left' | 'right') => {
     const categoryIndex = categories.findIndex(cat => cat.websites.some(w => w.id === website.id));
     if (categoryIndex === -1) return;
 
@@ -169,33 +196,7 @@ const App: React.FC = () => {
     }
 
     setCategories(newCategories);
-  };
-
-  const getAlignmentClass = (alignment: string) => {
-    switch (alignment) {
-      case 'top':
-        return 'justify-start';
-      case 'middle':
-        return 'justify-center';
-      case 'bottom':
-        return 'justify-end';
-      default:
-        return 'justify-center';
-    }
-  };
-
-  const getHorizontalAlignmentClass = (alignment: string) => {
-    switch (alignment) {
-      case 'left':
-        return 'justify-start';
-      case 'middle':
-        return 'justify-center';
-      case 'right':
-        return 'justify-end';
-      default:
-        return 'justify-center';
-    }
-  };
+  }, [categories]);
 
   return (
     <main
@@ -226,7 +227,8 @@ const App: React.FC = () => {
             setEditingWebsite={setEditingWebsite}
             handleMoveWebsite={handleMoveWebsite}
             getHorizontalAlignmentClass={getHorizontalAlignmentClass}
-            config={config}
+            horizontalAlignment={config.horizontalAlignment}
+            tileSize={config.tileSize}
           />
         ))}
         {isEditing && (
@@ -250,39 +252,45 @@ const App: React.FC = () => {
       {config.serverWidget.enabled && <ServerWidget config={config} />}
 
       {(editingWebsite || addingWebsite) && (
-        <WebsiteEditModal
-          website={editingWebsite || undefined}
-          edit={!!editingWebsite}
-          onClose={() => {
-            setEditingWebsite(null);
-            setAddingWebsite(null);
-          }}
-          onSave={handleSaveWebsite}
-          onDelete={handleDeleteWebsite}
-        />
+        <Suspense fallback={null}>
+          <WebsiteEditModal
+            website={editingWebsite || undefined}
+            edit={!!editingWebsite}
+            onClose={() => {
+              setEditingWebsite(null);
+              setAddingWebsite(null);
+            }}
+            onSave={handleSaveWebsite}
+            onDelete={handleDeleteWebsite}
+          />
+        </Suspense>
       )}
 
       {isCategoryModalOpen && (
-        <CategoryEditModal
-          category={editingCategory || undefined}
-          edit={!!editingCategory}
-          onClose={() => {
-            setEditingCategory(null);
-            setIsCategoryModalOpen(false);
-          }}
-          onSave={handleSaveCategory}
-          onDelete={handleDeleteCategory}
-        />
+        <Suspense fallback={null}>
+          <CategoryEditModal
+            category={editingCategory || undefined}
+            edit={!!editingCategory}
+            onClose={() => {
+              setEditingCategory(null);
+              setIsCategoryModalOpen(false);
+            }}
+            onSave={handleSaveCategory}
+            onDelete={handleDeleteCategory}
+          />
+        </Suspense>
       )}
 
       {isConfigModalOpen && (
-        <ConfigurationModal
-          currentConfig={config}
-          onClose={() => setIsConfigModalOpen(false)}
-          onSave={handleSaveConfig}
-          onWallpaperChange={handleWallpaperChange}
-          onNextWallpaper={handleNextWallpaper}
-        />
+        <Suspense fallback={null}>
+          <ConfigurationModal
+            currentConfig={config}
+            onClose={() => setIsConfigModalOpen(false)}
+            onSave={handleSaveConfig}
+            onWallpaperChange={handleWallpaperChange}
+            onNextWallpaper={handleNextWallpaper}
+          />
+        </Suspense>
       )}
     </main>
   );

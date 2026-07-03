@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Server } from '../types';
 import ping from './utils/jsping.js';
 
@@ -12,44 +12,63 @@ interface ServerWidgetProps {
   };
 }
 
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'online':
+      return 'bg-green-500';
+    case 'offline':
+      return 'bg-red-500';
+    default:
+      return 'bg-gray-500';
+  }
+};
+
 const ServerWidget: React.FC<ServerWidgetProps> = ({ config }) => {
   const [serverStatus, setServerStatus] = useState<Record<string, string>>({});
+  const serversRef = useRef(config.serverWidget.servers);
+  serversRef.current = config.serverWidget.servers;
+
+  const serversSignature = config.serverWidget.servers
+    .map(s => `${s.id}:${s.address}`)
+    .join('|');
+  const serverCount = config.serverWidget.servers.length;
 
   useEffect(() => {
+    if (!config.serverWidget.enabled) return;
+
     const pingServers = () => {
-      config.serverWidget.servers.forEach((server) => {
-        setServerStatus((prevStatus) => ({ ...prevStatus, [server.id]: 'pending' }));
+      const pending: Record<string, string> = {};
+      for (const s of serversRef.current) pending[s.id] = 'pending';
+      setServerStatus(prev => ({ ...prev, ...pending }));
+
+      serversRef.current.forEach((server) => {
         ping(server.address)
           .then(() => {
-            setServerStatus((prevStatus) => ({ ...prevStatus, [server.id]: 'online' }));
+            setServerStatus(prev =>
+              prev[server.id] === 'online' ? prev : { ...prev, [server.id]: 'online' }
+            );
           })
           .catch(() => {
-            setServerStatus((prevStatus) => ({ ...prevStatus, [server.id]: 'offline' }));
+            setServerStatus(prev =>
+              prev[server.id] === 'offline' ? prev : { ...prev, [server.id]: 'offline' }
+            );
           });
       });
     };
 
-    if (config.serverWidget.enabled) {
-      pingServers();
-      const interval = setInterval(pingServers, config.serverWidget.pingFrequency * 1000);
-      return () => clearInterval(interval);
-    }
-  }, [config.serverWidget.enabled, config.serverWidget.servers, config.serverWidget.pingFrequency]);
+    pingServers();
+    const interval = setInterval(pingServers, config.serverWidget.pingFrequency * 1000);
+    return () => clearInterval(interval);
+  }, [
+    config.serverWidget.enabled,
+    config.serverWidget.pingFrequency,
+    serversSignature,
+    serverCount,
+  ]);
 
   if (!config.serverWidget.enabled) {
     return null;
   }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'bg-green-500';
-      case 'offline':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
 
   return (
     <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-auto max-w-full">

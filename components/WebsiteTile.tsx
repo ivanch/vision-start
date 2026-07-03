@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import { Website } from '../types';
 
 interface WebsiteTileProps {
@@ -23,7 +23,6 @@ const getTileSizeClass = (size: string | undefined) => {
 };
 
 
-// Returns normal icon size in px
 const getIconPixelSize = (size: string | undefined): number => {
   switch (size) {
     case 'small':
@@ -37,7 +36,6 @@ const getIconPixelSize = (size: string | undefined): number => {
   }
 };
 
-// Returns loading icon size in px
 const getIconLoadingPixelSize = (size: string | undefined): number => {
   switch (size) {
     case 'small':
@@ -115,4 +113,4 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
   );
 };
 
-export default WebsiteTile;
+export default memo(WebsiteTile);

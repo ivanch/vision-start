@@ -16,9 +16,26 @@ const Clock: React.FC<ClockProps> = ({ config, getClockSizeClass }) => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
-    const timerId = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timerId);
-  }, []);
+    if (!config.clock.enabled) return;
+
+    const scheduleNext = () => {
+      const now = new Date();
+      const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+      timeoutId = window.setTimeout(() => {
+        setTime(new Date());
+        intervalId = window.setInterval(() => setTime(new Date()), 60_000);
+      }, msToNextMinute);
+    };
+
+    let timeoutId = 0;
+    let intervalId = 0;
+    scheduleNext();
+
+    return () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [config.clock.enabled]);
 
   if (!config.clock.enabled) {
     return null;

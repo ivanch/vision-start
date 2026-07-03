@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Website } from '../types';
 import { getWebsiteIcon } from './utils/iconService';
 
@@ -22,47 +22,64 @@ interface IconMetadata {
       name: string;
     };
   };
-  colors: any; // this can be anything I guess
+  colors: any;
 }
+
+let iconMetadataCache: IconMetadata[] | null = null;
 
 const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onClose, onSave, onDelete }) => {
   const [name, setName] = useState(website ? website.name : '');
   const [url, setUrl] = useState(website ? website.url : '');
   const [icon, setIcon] = useState(website ? website.icon : '');
   const [iconQuery, setIconQuery] = useState('');
-  const [iconMetadata, setIconMetadata] = useState<IconMetadata[]>([]);
   const [filteredIcons, setFilteredIcons] = useState<IconMetadata[]>([]);
+  const [iconMetadata, setIconMetadata] = useState<IconMetadata[]>([]);
+  const [iconsFetched, setIconsFetched] = useState(false);
+  const debounceRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    fetch('/icon-metadata.json')
+  const ensureIconMetadata = () => {
+    if (iconMetadataCache || iconsFetched) return;
+    setIconsFetched(true);
+    fetch('/icon-metadata.json', { cache: 'force-cache' })
       .then(response => response.json())
       .then(data => {
-        const iconsArray = Object.entries(data).map(([name, details]) => ({
+        const iconsArray: IconMetadata[] = Object.entries(data).map(([name, details]) => ({
           name,
-          ...details
-        }));
-        // Expand colors into separate entries
-        iconsArray.forEach(icon => {
-          if (icon.colors) {
-            const colors = Object.values(icon.colors).filter(key => key !== icon.name);
-            for (const color of colors) {
-              const newIcon = { ...icon };
-              newIcon.name = color;
-              iconsArray.push(newIcon);
-            }
-          }
-        });
+          ...(details as object),
+        })) as IconMetadata[];
+        iconMetadataCache = iconsArray;
         setIconMetadata(iconsArray);
-      });
-  }, []);
+      })
+      .catch(err => console.error('Failed to load icon metadata', err));
+  };
 
   useEffect(() => {
-    if (iconQuery && Array.isArray(iconMetadata)) {
-      const lowerCaseQuery = iconQuery.toLowerCase();
-      const filtered = iconMetadata
-        .filter(icon => icon.name.toLowerCase().includes(lowerCaseQuery))
-        .slice(0, 50);
-      setFilteredIcons(filtered);
+    if (iconQuery && Array.isArray(iconMetadata) && iconMetadata.length > 0) {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      debounceRef.current = window.setTimeout(() => {
+        const lowerCaseQuery = iconQuery.toLowerCase();
+        const filtered: IconMetadata[] = [];
+        for (const ic of iconMetadata) {
+          if (ic.name.toLowerCase().includes(lowerCaseQuery)) {
+            filtered.push(ic);
+            if (filtered.length >= 50) break;
+          }
+          if (ic.colors) {
+            const colors = Object.values(ic.colors).filter(key => key !== ic.name);
+            for (const color of colors) {
+              if (typeof color === 'string' && color.toLowerCase().includes(lowerCaseQuery)) {
+                filtered.push({ ...ic, name: color });
+                if (filtered.length >= 50) break;
+              }
+            }
+            if (filtered.length >= 50) break;
+          }
+        }
+        setFilteredIcons(filtered);
+      }, 150);
+      return () => {
+        if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      };
     } else {
       setFilteredIcons([]);
     }
@@ -76,7 +93,6 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
   };
 
   const handleSave = () => {
-    console.log({ id: website?.id, name, url, icon });
     onSave({ id: website?.id, name, url, icon });
   };
 
@@ -128,6 +144,7 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
                   setIcon(e.target.value);
                   setIconQuery(e.target.value);
                 }}
+                onFocus={ensureIconMetadata}
                 className="bg-white/10 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 w-full"
               />
               {filteredIcons.length > 0 && (

@@ -36,7 +36,7 @@ Live instances / artifacts:
 | Bundler / dev server | Vite 6 |
 | Styling | Tailwind CSS v4 (`@tailwindcss/vite` plugin + `@tailwindcss/postcss` + `autoprefixer`) |
 | Drag & drop | `@hello-pangea/dnd` 18 |
-| Build output | Plain static files in `dist/` (relative `base: './'`, single CSS bundle) |
+| Build output | Plain static files in `dist/` (relative `base: './'`, single CSS bundle; modals code-split into separate JS chunks via `React.lazy`) |
 | Container | Node 22 Alpine build stage → nginx Alpine serving `dist/` |
 | Extension packaging | Manifest V3 (`manifest.json`) consuming `dist/` + `manifest.json` zipped as `vision-start-<tag>.zip` |
 | CI/CD | Gitea Actions workflows (`.gitea/workflows/`) |
@@ -62,6 +62,15 @@ The startpage is composed of widgets and a configuration panel:
 - **Edit mode** — Toggle via the top-left pencil button; reveals per-tile move/edit buttons, per-category edit buttons, and "add" buttons.
 - **Glassmorphism design language** — Translucent surfaces, `backdrop-blur`, subtle borders, and custom iOS-like easing tokens (`ease-ios`, `ease-spring`) defined in `index.css`.
 
+Performance notes:
+- Modals (`ConfigurationModal`, `WebsiteEditModal`, `CategoryEditModal`) are code-split via `React.lazy` + `Suspense` and only loaded when opened. `ConfigurationModal` is the heaviest chunk (it pulls in `@hello-pangea/dnd` via `ServerWidgetTab`); the rest of `@hello-pangea/dnd` is isolated from the initial load.
+- `WebsiteTile` and `CategoryGroup` are wrapped in `React.memo`; `App.tsx` handlers are `useCallback`-stabilized and pure alignment helpers are hoisted to module scope, so opening a modal / toggling edit no longer re-renders every tile.
+- `Clock` updates on the minute boundary (one `setTimeout` → `setInterval(60_000)`) instead of every second.
+- `jsping` cancels its 5s timeout on image resolve/error and nulls the `Image` handlers, preventing leaks across ping cycles.
+- `ServerWidget` batches pending-status updates into one `setState` and depends on a stable servers signature (ids+addresses) so unrelated config edits don't restart pings.
+- Icon metadata (`/icon-metadata.json`) is module-level cached, fetched lazily on first focus of the icon field with `cache: 'force-cache'`, filter debounced ~150ms, and color variants are expanded lazily during filtering rather than upfront.
+- `Wallpaper` caches resolved wallpaper URLs in a module-level `Map` and its CSS transition lives in the static `.wallpaper-transition` class in `index.css`.
+
 Planned / To-do (tracked in `README.md`):
 - Dynamic Weather widget, Search Bar widget, draggable/resizable grid system, Notes/Scratchpad widget, theming (light/dark, accent colors, wallpaper-derived accents, minimal feel toggle), and a general "refactor everything" note.
 
@@ -86,7 +95,6 @@ vision-start/
 │   ├── WebsiteTile.tsx          # Individual bookmark tile + loading/edit controls
 │   ├── WebsiteEditModal.tsx     # Add/edit a website (icon picker inside)
 │   ├── CategoryEditModal.tsx    # Add/edit a category
-│   ├── EditModal.tsx            # Legacy drag-and-drop editor (imports IconPicker & lucide-react; not wired into App.tsx)
 │   ├── ConfigurationModal.tsx   # Tabbed settings drawer with Export/Import
 │   ├── ServerWidget.tsx         # Bottom server status pill
 │   ├── Dropdown.tsx             # Reusable glassy dropdown (single/multi select)
@@ -126,7 +134,8 @@ vision-start/
 │   ├── main.yaml                 # On push to main: build, push staging Docker image, SSH-deploy to staging
 │   └── release.yaml              # On v* tag: build, zip, VirusTotal check, Gitea release, push latest image, SSH-deploy to prod
 │
-├── Dockerfile                    # Node 22 build → nginx serving dist/
+├── Dockerfile                    # Node 22 build → nginx serving dist/ (with gzip via nginx.conf)
+├── nginx.conf                    # nginx gzip config (JSON/JS/CSS/SVG/XML), mounted into container
 ├── .dockerignore
 ├── .gitignore                    # Ignores node_modules, dist, .claude/, public/icon-metadata.json, etc.
 ├── postcss.config.cjs            # @tailwindcss/postcss + autoprefixer
@@ -211,9 +220,8 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 
 ## 8. Notable Behaviors & Quirks
 
-- **`EditModal.tsx` is not wired up.** It imports `./IconPicker` and `lucide-react`, neither of which exist in `package.json` or this tree. It appears to be a legacy/abandoned editor superseded by `WebsiteEditModal.tsx` + `CategoryEditModal.tsx`. Treat it as dead code unless reintended.
-- **`EditModal` references `lucide-react` and `IconPicker`** which are **not** in `package.json`; do not rely on them.
-- **`@hello-pangea/dnd`** is used only inside `EditModal.tsx` (legacy) and `ServerWidgetTab.tsx` (server reorder). `WebsiteTile` moves tile via simple left/right buttons, not drag-and-drop.
+- **`EditModal.tsx` has been removed.** It was a legacy drag-and-drop editor that imported non-existent `lucide-react` and `./IconPicker`; it was never wired into `App.tsx`. Use `WebsiteEditModal.tsx` / `CategoryEditModal.tsx` instead.
+- **`@hello-pangea/dnd`** is used only in `ServerWidgetTab.tsx` (server reorder), which itself is imported by the lazy-loaded `ConfigurationModal`, so it lives in a separate chunk and is absent from the initial page load. `WebsiteTile` moves tiles via simple left/right buttons, not drag-and-drop.
 - **Chrome storage is optional.** `StorageLocalManager` checks availability once (`checkChromeStorageLocalAvailable`) and caches it. When unavailable (e.g., running as a plain web page), wallpaper upload/delete flows are gated off and `addWallpaperToChromeStorageLocal` throws.
 - **Wallpaper rotation** is time-based, evaluated on render/mount rather than via a timer. It reads `wallpaperState` from `localStorage`, advances the index if the frequency window has elapsed, and writes it back. The renderer clamps `currentIndex` to the valid range of the current selection and walks the list forward to find a wallpaper whose data actually resolves (so deleting the currently-displayed wallpaper, or shrinking the selection, never leaves the background blank); if no wallpaper resolves, the background layer is hidden. When the selection becomes empty, `wallpaperState` is reset and the background is hidden. A manual "Next Wallpaper" button in the Theme tab advances `currentIndex` (with wraparound) and bumps a `wallpaperVersion` nonce in `App.tsx` that retriggers the renderer.
 - **Icon picker** in `WebsiteEditModal` loads `/icon-metadata.json` at runtime and expands each icon's `colors` into duplicate-name entries so color variants are searchable.

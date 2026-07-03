@@ -1,3 +1,4 @@
+import React, { memo } from 'react';
 import WebsiteTile from '../WebsiteTile';
 import { Category, Website } from '../../types';
 
@@ -10,10 +11,8 @@ interface CategoryGroupProps {
   setEditingWebsite: (website: Website) => void;
   handleMoveWebsite: (website: Website, direction: 'left' | 'right') => void;
   getHorizontalAlignmentClass: (alignment: string) => string;
-  config: {
-    horizontalAlignment: string;
-    tileSize?: string;
-  };
+  horizontalAlignment: string;
+  tileSize?: string;
 }
 
 const CategoryGroup: React.FC<CategoryGroupProps> = ({
@@ -25,12 +24,13 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
   setEditingWebsite,
   handleMoveWebsite,
   getHorizontalAlignmentClass,
-  config,
+  horizontalAlignment,
+  tileSize,
 }) => {
   return (
     <div key={category.id} className="w-full">
-      <div className={`flex ${getHorizontalAlignmentClass(config.horizontalAlignment)} items-center mb-4 w-full ${config.horizontalAlignment !== 'middle' ? 'px-8' : ''}`}>
-        <h2 className={`text-2xl font-bold text-white ${config.horizontalAlignment === 'left' ? 'text-left' : config.horizontalAlignment === 'right' ? 'text-right' : 'text-center'} ${config.horizontalAlignment !== 'middle' ? 'w-full' : ''}`}>{category.name}</h2>
+      <div className={`flex ${getHorizontalAlignmentClass(horizontalAlignment)} items-center mb-4 w-full ${horizontalAlignment !== 'middle' ? 'px-8' : ''}`}>
+        <h2 className={`text-2xl font-bold text-white ${horizontalAlignment === 'left' ? 'text-left' : horizontalAlignment === 'right' ? 'text-right' : 'text-center'} ${horizontalAlignment !== 'middle' ? 'w-full' : ''}`}>{category.name}</h2>
         {isEditing && (
           <button
             onClick={() => {
@@ -45,7 +45,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
           </button>
         )}
       </div>
-      <div className={`flex flex-wrap ${getHorizontalAlignmentClass(config.horizontalAlignment)} gap-6`}>
+      <div className={`flex flex-wrap ${getHorizontalAlignmentClass(horizontalAlignment)} gap-6`}>
         {category.websites.map((website) => (
           <WebsiteTile
             key={website.id}
@@ -53,7 +53,7 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
             isEditing={isEditing}
             onEdit={setEditingWebsite}
             onMove={handleMoveWebsite}
-            tileSize={config.tileSize}
+            tileSize={tileSize}
           />
         ))}
         {isEditing && (
@@ -72,4 +72,4 @@ const CategoryGroup: React.FC<CategoryGroupProps> = ({
   );
 };
 
-export default CategoryGroup;
+export default memo(CategoryGroup);

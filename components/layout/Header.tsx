@@ -50,6 +50,8 @@ const getSubtitleSizeClass = (size: string) => {
   }
 };
 
+export { getClockSizeClass, getTitleSizeClass, getSubtitleSizeClass };
+
 const Header: React.FC<HeaderProps> = ({ config }) => {
   return (
     <>
