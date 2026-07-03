@@ -177,23 +177,15 @@ const App: React.FC = () => {
     const websiteIndex = category.websites.findIndex(w => w.id === website.id);
     if (websiteIndex === -1) return;
 
-    const newCategories = [...categories];
+    const targetIndex = direction === 'left' ? websiteIndex - 1 : websiteIndex + 1;
+    if (targetIndex < 0 || targetIndex >= category.websites.length) return;
+
     const newWebsites = [...category.websites];
     const [movedWebsite] = newWebsites.splice(websiteIndex, 1);
+    newWebsites.splice(targetIndex, 0, movedWebsite);
 
-    if (direction === 'left') {
-      const newCategoryIndex = (categoryIndex - 1 + categories.length) % categories.length;
-      newCategories[categoryIndex] = { ...category, websites: newWebsites };
-      const destCategory = newCategories[newCategoryIndex];
-      const destWebsites = [...destCategory.websites, { ...movedWebsite, categoryId: destCategory.id }];
-      newCategories[newCategoryIndex] = { ...destCategory, websites: destWebsites };
-    } else {
-      const newCategoryIndex = (categoryIndex + 1) % categories.length;
-      newCategories[categoryIndex] = { ...category, websites: newWebsites };
-      const destCategory = newCategories[newCategoryIndex];
-      const destWebsites = [...destCategory.websites, { ...movedWebsite, categoryId: destCategory.id }];
-      newCategories[newCategoryIndex] = { ...destCategory, websites: destWebsites };
-    }
+    const newCategories = [...categories];
+    newCategories[categoryIndex] = { ...category, websites: newWebsites };
 
     setCategories(newCategories);
   }, [categories]);
