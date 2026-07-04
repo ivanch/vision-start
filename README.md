@@ -10,10 +10,9 @@ A light liquid-glass, modern and customizable startpage built with React.
 
 ## Screenshots
 
-![Vision Start liquid glass home](screenshots/liquid-home.png)
-![Vision Start liquid glass editing](screenshots/liquid-editing.png)
-![Vision Start liquid glass configuration](screenshots/liquid-configuration.png)
-![Vision Start liquid glass mobile](screenshots/liquid-mobile.png)
+![Vision Start home](screenshots/home.png)
+![Vision Start editing](screenshots/editing.png)
+![Vision Start configuration](screenshots/configuration.png)
 
 ## Installing
 

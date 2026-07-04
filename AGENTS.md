@@ -14,7 +14,7 @@ Guidance for AI agents (and humans) working on Vision Start. Read before making 
 
 ## 1. Styling guidance
 
-The design language is **light liquid glass**: translucent bright surfaces, refractive edge highlights, backdrop blur, soft shadows, cyan accents, and iOS-like easing.
+The design language is **soft liquid glass**: lightly translucent matte surfaces, restrained edge highlights, moderate backdrop blur, soft shadows, cyan accents, and iOS-like easing.
 
 ### Surface recipe (use consistently)
 - **Tiles / floating controls / light surfaces:** `liquid-surface` plus `liquid-control` / `liquid-tile` / `liquid-focus` as appropriate.
@@ -23,6 +23,7 @@ The design language is **light liquid glass**: translucent bright surfaces, refr
 - **Buttons:** `liquid-button` plus one of `liquid-button-primary`, `liquid-button-success`, `liquid-button-secondary`, or `liquid-button-danger`.
 - **Add/edit surfaces:** add tiles use `liquid-ghost-tile`; tile edit controls use `liquid-edit-toolbar` and `liquid-edit-action`.
 - **Full-screen modal overlay:** `liquid-modal-backdrop`.
+- Keep the glass effect subtle: avoid high-opacity white highlights, heavy blur, strong saturation, or oversized glow unless a specific component needs emphasis.
 
 ### Color tokens
 - Accent / focus / selection: cyan via `liquid-focus`, `cyan-400`, `cyan-200`, and `liquid-button-primary`

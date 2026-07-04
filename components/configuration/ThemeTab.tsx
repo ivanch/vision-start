@@ -14,6 +14,13 @@ interface ThemeTabProps {
   onNextWallpaper: () => void;
 }
 
+type RangeStyle = React.CSSProperties & { '--range-progress': string };
+
+const getRangeStyle = (value: number, min: number, max: number): RangeStyle => {
+  const progress = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+  return { '--range-progress': `${progress}%` };
+};
+
 const ThemeTab: React.FC<ThemeTabProps> = ({
   config,
   onChange,
@@ -93,6 +100,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
             value={config.wallpaperBlur}
             onChange={(e) => onChange({ wallpaperBlur: Number(e.target.value) })}
             className="liquid-range"
+            style={getRangeStyle(config.wallpaperBlur, 0, 50)}
           />
           <span className="w-12 text-right text-sm text-slate-200">{config.wallpaperBlur}px</span>
         </div>
@@ -107,6 +115,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
             value={config.wallpaperBrightness}
             onChange={(e) => onChange({ wallpaperBrightness: Number(e.target.value) })}
             className="liquid-range"
+            style={getRangeStyle(config.wallpaperBrightness, 0, 200)}
           />
           <span className="w-12 text-right text-sm text-slate-200">{config.wallpaperBrightness}%</span>
         </div>
@@ -121,6 +130,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
             value={config.wallpaperOpacity}
             onChange={(e) => onChange({ wallpaperOpacity: Number(e.target.value) })}
             className="liquid-range"
+            style={getRangeStyle(config.wallpaperOpacity, 1, 100)}
           />
           <span className="w-12 text-right text-sm text-slate-200">{config.wallpaperOpacity}%</span>
         </div>

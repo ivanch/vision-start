@@ -8,6 +8,13 @@ interface ServerWidgetTabProps {
   onChange: (updates: Partial<Config>) => void;
 }
 
+type RangeStyle = React.CSSProperties & { '--range-progress': string };
+
+const getRangeStyle = (value: number, min: number, max: number): RangeStyle => {
+  const progress = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+  return { '--range-progress': `${progress}%` };
+};
+
 const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) => {
   const [newServerName, setNewServerName] = useState('');
   const [newServerAddress, setNewServerAddress] = useState('');
@@ -63,6 +70,7 @@ const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) =
                 value={config.serverWidget.pingFrequency}
                 onChange={(e) => updateServerWidget({ pingFrequency: Number(e.target.value) })}
                 className="liquid-range"
+                style={getRangeStyle(config.serverWidget.pingFrequency, 5, 60)}
               />
               <span className="w-12 text-right text-sm text-slate-200">{config.serverWidget.pingFrequency}s</span>
             </div>
