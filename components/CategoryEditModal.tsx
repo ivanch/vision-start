@@ -19,31 +19,31 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({ category, edit, o
   };
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50" onClick={handleOverlayClick}>
-      <div className="bg-black/25 backdrop-blur-md border border-white/10 rounded-2xl p-8 w-full max-w-lg text-white">
-        <h2 className="text-3xl font-bold mb-6">{edit ? 'Edit Category' : 'Add Category'}</h2>
+    <div className="liquid-modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4" onClick={handleOverlayClick}>
+      <div className="liquid-panel liquid-modal-card rounded-3xl p-6 sm:p-8 w-full max-w-lg text-white">
+        <h2 className="liquid-title-text text-3xl font-extrabold mb-6">{edit ? 'Edit Category' : 'Add Category'}</h2>
         <div className="flex flex-col gap-4">
           <input
             type="text"
             placeholder="Category Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="bg-white/10 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            className="liquid-input p-3"
           />
         </div>
         <div className="flex justify-between items-center mt-8">
           <div>
             {edit && (
-              <button onClick={onDelete} className="bg-red-500 hover:bg-red-400 text-white font-bold py-2 px-6 rounded-lg">
+              <button onClick={onDelete} className="liquid-button liquid-button-danger liquid-focus py-2.5 px-5">
                 Delete
               </button>
             )}
           </div>
-          <div className="flex justify-end gap-4">
-            <button onClick={() => onSave(name)} className="bg-green-500 hover:bg-green-400 text-white font-bold py-2 px-6 rounded-lg">
+          <div className="flex justify-end gap-3">
+            <button onClick={() => onSave(name)} className="liquid-button liquid-button-success liquid-focus py-2.5 px-5">
               Save
             </button>
-            <button onClick={onClose} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg">
+            <button onClick={onClose} className="liquid-button liquid-button-secondary liquid-focus py-2.5 px-5">
               Close
             </button>
           </div>

@@ -3,8 +3,547 @@
 @theme {
   --ease-ios: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-liquid: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html {
+  background: #0f1720;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background: #0f1720;
+  color: white;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.vision-shell {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.06), transparent 28rem),
+    radial-gradient(circle at 82% 20%, rgba(34, 211, 238, 0.05), transparent 26rem),
+    linear-gradient(135deg, rgba(241, 245, 249, 0.04), rgba(15, 23, 42, 0.16) 52%, rgba(8, 13, 20, 0.32));
+}
+
+.vision-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -15;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 38%, rgba(2, 6, 23, 0.3) 100%),
+    radial-gradient(ellipse at center, transparent 0%, rgba(2, 6, 23, 0.18) 78%, rgba(2, 6, 23, 0.36) 100%);
 }
 
 .wallpaper-transition {
-  transition: filter 0.3s ease, opacity 0.3s ease;
+  transition: filter 0.7s var(--ease-liquid), opacity 0.7s var(--ease-liquid), transform 0.7s var(--ease-liquid);
+}
+
+.wallpaper-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -30;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.015);
+  will-change: filter, opacity, transform;
+}
+
+.wallpaper-luminance {
+  position: fixed;
+  inset: 0;
+  z-index: -25;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02) 34%, rgba(5, 12, 20, 0.34)),
+    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.05), transparent 28rem),
+    radial-gradient(circle at 50% 100%, rgba(8, 13, 24, 0.36), transparent 36rem);
+}
+
+.liquid-surface {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04) 46%, rgba(15, 23, 42, 0.18)),
+    rgba(8, 13, 23, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -10px 20px rgba(2, 6, 23, 0.12),
+    0 12px 28px rgba(2, 6, 23, 0.2);
+  -webkit-backdrop-filter: blur(10px) saturate(112%);
+  backdrop-filter: blur(10px) saturate(112%);
+}
+
+.liquid-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.1), transparent 34%),
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.07), transparent 42%);
+  opacity: 0.28;
+}
+
+.liquid-panel {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04) 48%, rgba(5, 12, 22, 0.34)),
+    rgba(8, 13, 23, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 22px 56px rgba(2, 6, 23, 0.3);
+  -webkit-backdrop-filter: blur(14px) saturate(115%);
+  backdrop-filter: blur(14px) saturate(115%);
+}
+
+.liquid-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  color: white;
+  transition:
+    transform 180ms var(--ease-ios),
+    background 180ms var(--ease-ios),
+    border-color 180ms var(--ease-ios),
+    box-shadow 180ms var(--ease-ios),
+    color 180ms var(--ease-ios);
+}
+
+.liquid-control:hover {
+  transform: translateY(-1px) scale(1.025);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05)),
+    rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 14px 30px rgba(2, 6, 23, 0.22);
+}
+
+.liquid-control:active {
+  transform: scale(0.94);
+}
+
+.liquid-focus {
+  outline: none;
+}
+
+.liquid-focus:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.9);
+  outline-offset: 3px;
+}
+
+.liquid-input {
+  width: 100%;
+  color: white;
+  background: rgba(255, 255, 255, 0.075);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 0.875rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition:
+    background 180ms var(--ease-ios),
+    border-color 180ms var(--ease-ios),
+    box-shadow 180ms var(--ease-ios);
+}
+
+.liquid-input::placeholder {
+  color: rgba(226, 232, 240, 0.58);
+}
+
+.liquid-input:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.liquid-input:focus {
+  outline: none;
+  border-color: rgba(34, 211, 238, 0.76);
+  box-shadow:
+    0 0 0 3px rgba(34, 211, 238, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.liquid-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.875rem;
+  font-weight: 700;
+  color: white;
+  transition:
+    transform 150ms var(--ease-ios),
+    filter 150ms var(--ease-ios),
+    background 150ms var(--ease-ios),
+    box-shadow 150ms var(--ease-ios);
+}
+
+.liquid-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.liquid-button:active {
+  transform: scale(0.96);
+}
+
+.liquid-button-primary {
+  background: linear-gradient(135deg, #06b6d4, #22d3ee);
+  box-shadow: 0 14px 28px rgba(8, 145, 178, 0.22);
+}
+
+.liquid-button-success {
+  background: linear-gradient(135deg, #10b981, #22c55e);
+  box-shadow: 0 14px 28px rgba(34, 197, 94, 0.2);
+}
+
+.liquid-button-secondary {
+  background: rgba(100, 116, 139, 0.74);
+}
+
+.liquid-button-danger {
+  background: linear-gradient(135deg, #ef4444, #fb7185);
+}
+
+.liquid-range {
+  --range-progress: 50%;
+  width: clamp(10rem, 36vw, 13.5rem);
+  height: 1.6rem;
+  appearance: none;
+  background: transparent;
+  accent-color: #22d3ee;
+  cursor: pointer;
+}
+
+.liquid-range:focus {
+  outline: none;
+}
+
+.liquid-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.liquid-range::-webkit-slider-runnable-track {
+  height: 0.68rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(34, 211, 238, 0.92), rgba(103, 232, 249, 0.78)) 0 / var(--range-progress) 100% no-repeat,
+    linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.06)),
+    rgba(8, 13, 23, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 2px rgba(2, 6, 23, 0.24),
+    0 8px 18px rgba(2, 6, 23, 0.14);
+  transition:
+    border-color 180ms var(--ease-ios),
+    box-shadow 180ms var(--ease-ios);
+}
+
+.liquid-range:hover::-webkit-slider-runnable-track {
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 2px rgba(2, 6, 23, 0.2),
+    0 10px 22px rgba(2, 6, 23, 0.18);
+}
+
+.liquid-range::-webkit-slider-thumb {
+  width: 1.18rem;
+  height: 1.18rem;
+  margin-top: -0.31rem;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #ffffff, #e5fbff 48%, #a5f3fc);
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  box-shadow:
+    0 0 0 4px rgba(34, 211, 238, 0.1),
+    0 8px 18px rgba(2, 6, 23, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition:
+    transform 180ms var(--ease-ios),
+    box-shadow 180ms var(--ease-ios),
+    border-color 180ms var(--ease-ios);
+}
+
+.liquid-range:hover::-webkit-slider-thumb {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 5px rgba(34, 211, 238, 0.15),
+    0 10px 22px rgba(2, 6, 23, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.liquid-range:active::-webkit-slider-thumb {
+  transform: scale(0.94);
+}
+
+.liquid-range:focus-visible::-webkit-slider-thumb {
+  border-color: rgba(34, 211, 238, 0.9);
+  box-shadow:
+    0 0 0 4px rgba(34, 211, 238, 0.24),
+    0 0 0 7px rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(2, 6, 23, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.liquid-range::-moz-range-track {
+  height: 0.68rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.06)),
+    rgba(8, 13, 23, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 2px rgba(2, 6, 23, 0.24),
+    0 8px 18px rgba(2, 6, 23, 0.14);
+}
+
+.liquid-range::-moz-range-progress {
+  height: 0.68rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.92), rgba(103, 232, 249, 0.78));
+}
+
+.liquid-range::-moz-range-thumb {
+  width: 1.18rem;
+  height: 1.18rem;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #ffffff, #e5fbff 48%, #a5f3fc);
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  box-shadow:
+    0 0 0 4px rgba(34, 211, 238, 0.1),
+    0 8px 18px rgba(2, 6, 23, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition:
+    transform 180ms var(--ease-ios),
+    box-shadow 180ms var(--ease-ios),
+    border-color 180ms var(--ease-ios);
+}
+
+.liquid-range:hover::-moz-range-thumb {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 5px rgba(34, 211, 238, 0.15),
+    0 10px 22px rgba(2, 6, 23, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.liquid-range:active::-moz-range-thumb {
+  transform: scale(0.94);
+}
+
+.liquid-range:focus-visible::-moz-range-thumb {
+  border-color: rgba(34, 211, 238, 0.9);
+  box-shadow:
+    0 0 0 4px rgba(34, 211, 238, 0.24),
+    0 0 0 7px rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(2, 6, 23, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.liquid-tile {
+  border-radius: 1.35rem;
+  transition:
+    transform 240ms var(--ease-liquid),
+    background 260ms var(--ease-ios),
+    border-color 260ms var(--ease-ios),
+    box-shadow 340ms var(--ease-liquid);
+  will-change: transform, box-shadow;
+}
+
+.liquid-tile:hover {
+  transform: translateY(-3px) scale(1.025);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08) 46%, rgba(34, 211, 238, 0.08)),
+    rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 18px 34px rgba(2, 6, 23, 0.24),
+    0 0 20px rgba(34, 211, 238, 0.04);
+}
+
+.liquid-tile:active {
+  transform: scale(0.965);
+}
+
+.liquid-ghost-tile {
+  border-radius: 1.35rem;
+  color: rgba(255, 255, 255, 0.72);
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.32);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.liquid-ghost-tile:hover {
+  color: white;
+  border-color: rgba(34, 211, 238, 0.62);
+  background:
+    linear-gradient(145deg, rgba(34, 211, 238, 0.08), rgba(255, 255, 255, 0.04)),
+    rgba(255, 255, 255, 0.05);
+}
+
+.liquid-edit-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: -0.9rem;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  transform: translateX(-50%);
+}
+
+.liquid-edit-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.72);
+  transition:
+    color 150ms var(--ease-ios),
+    background 150ms var(--ease-ios),
+    transform 150ms var(--ease-ios);
+}
+
+.liquid-edit-action:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(1.08);
+}
+
+.liquid-edit-action:active {
+  transform: scale(0.92);
+}
+
+.liquid-category-title {
+  text-shadow: 0 2px 16px rgba(2, 6, 23, 0.45);
+  letter-spacing: 0;
+}
+
+.liquid-clock-text,
+.liquid-title-text {
+  text-shadow:
+    0 2px 18px rgba(2, 6, 23, 0.45),
+    0 0 28px rgba(255, 255, 255, 0.12);
+  letter-spacing: 0;
+}
+
+.liquid-drawer {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03) 38%, rgba(7, 12, 22, 0.44)),
+    rgba(7, 12, 22, 0.68);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.08),
+    -26px 0 64px rgba(2, 6, 23, 0.3);
+  -webkit-backdrop-filter: blur(16px) saturate(112%);
+  backdrop-filter: blur(16px) saturate(112%);
+}
+
+.liquid-modal-backdrop {
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.04), transparent 32rem),
+    rgba(3, 7, 18, 0.72);
+  -webkit-backdrop-filter: blur(6px) saturate(108%);
+  backdrop-filter: blur(6px) saturate(108%);
+}
+
+.liquid-modal-card {
+  overflow: visible;
+  animation: liquid-pop 240ms var(--ease-spring);
+}
+
+.liquid-dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  animation: liquid-drop 150ms var(--ease-ios);
+  transform-origin: top;
+}
+
+.liquid-status-dot {
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.1),
+    0 0 18px currentColor;
+}
+
+@keyframes liquid-pop {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes liquid-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem) scaleY(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .liquid-control:hover,
+  .liquid-tile:hover,
+  .liquid-button:hover,
+  .liquid-edit-action:hover,
+  .liquid-range:hover::-webkit-slider-thumb,
+  .liquid-range:active::-webkit-slider-thumb,
+  .liquid-range:hover::-moz-range-thumb,
+  .liquid-range:active::-moz-range-thumb {
+    transform: none;
+  }
+
+  .liquid-range::-webkit-slider-runnable-track,
+  .liquid-range::-webkit-slider-thumb,
+  .liquid-range::-moz-range-track,
+  .liquid-range::-moz-range-progress,
+  .liquid-range::-moz-range-thumb {
+    transition: none;
+  }
 }

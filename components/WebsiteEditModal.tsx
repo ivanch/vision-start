@@ -103,15 +103,15 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
   };
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50" onClick={handleOverlayClick}>
-      <div className="bg-black/25 backdrop-blur-md border border-white/10 rounded-2xl p-8 w-full max-w-lg text-white">
-        <h2 className="text-3xl font-bold mb-6">{edit ? 'Edit Website' : 'Add Website'}</h2>
+    <div className="liquid-modal-backdrop fixed inset-0 flex items-center justify-center z-50 p-4" onClick={handleOverlayClick}>
+      <div className="liquid-panel liquid-modal-card rounded-3xl p-6 sm:p-8 w-full max-w-lg text-white">
+        <h2 className="liquid-title-text text-3xl font-extrabold mb-6">{edit ? 'Edit Website' : 'Add Website'}</h2>
         <div className="flex flex-col gap-4">
           <div className="flex justify-center mb-4">
             {icon ? (
               <img src={icon} alt="Website Icon" className="h-24 w-24 object-contain" />
             ) : (
-              <div className="h-24 w-24 bg-white/10 rounded-lg flex items-center justify-center">
+              <div className="liquid-surface h-24 w-24 rounded-2xl flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="2" y1="12" x2="22" y2="12"></line>
@@ -125,16 +125,16 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
             placeholder="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="bg-white/10 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            className="liquid-input p-3"
           />
           <input
             type="text"
             placeholder="URL"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            className="bg-white/10 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            className="liquid-input p-3"
           />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative w-full">
               <input
                 type="text"
@@ -145,10 +145,10 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
                   setIconQuery(e.target.value);
                 }}
                 onFocus={ensureIconMetadata}
-                className="bg-white/10 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400 w-full"
+                className="liquid-input p-3"
               />
               {filteredIcons.length > 0 && (
-                <div className="absolute z-10 w-full bg-gray-800 rounded-lg mt-1 max-h-60 overflow-y-auto">
+                <div className="liquid-panel liquid-dropdown-list absolute z-20 w-full rounded-xl mt-2 max-h-60 overflow-y-auto">
                   {filteredIcons.map(iconData => (
                     <div
                       key={iconData.name}
@@ -157,7 +157,7 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
                         setIcon(iconUrl);
                         setFilteredIcons([]);
                       }}
-                      className="cursor-pointer flex items-center p-2 hover:bg-gray-700"
+                      className="cursor-pointer flex items-center p-2 transition-colors duration-150 ease-ios hover:bg-white/20"
                     >
                       <img
                         src={`https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/${iconData.base}/${iconData.name}.${iconData.base}`}
@@ -170,7 +170,7 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
                 </div>
               )}
             </div>
-            <button onClick={fetchIcon} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg">
+            <button onClick={fetchIcon} className="liquid-button liquid-button-secondary liquid-focus py-3 px-4">
               Fetch
             </button>
           </div>
@@ -178,16 +178,16 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
         <div className="flex justify-between items-center mt-8">
           <div>
             {edit && (
-                <button onClick={onDelete} className="bg-red-500 hover:bg-red-400 text-white font-bold py-2 px-6 rounded-lg">
+                <button onClick={onDelete} className="liquid-button liquid-button-danger liquid-focus py-2.5 px-5">
                     Delete
                 </button>
             )}
           </div>
-          <div className="flex justify-end gap-4">
-            <button onClick={handleSave} className="bg-green-500 hover:bg-green-400 text-white font-bold py-2 px-6 rounded-lg">
+          <div className="flex justify-end gap-3">
+            <button onClick={handleSave} className="liquid-button liquid-button-success liquid-focus py-2.5 px-5">
                 Save
             </button>
-            <button onClick={onClose} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg">
+            <button onClick={onClose} className="liquid-button liquid-button-secondary liquid-focus py-2.5 px-5">
                 Close
             </button>
           </div>

@@ -15,14 +15,14 @@ const ClockTab: React.FC<ClockTabProps> = ({ config, onChange }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Enable Clock</label>
         <ToggleSwitch
           checked={config.clock.enabled}
           onChange={(checked) => updateClock({ enabled: checked })}
         />
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Clock Size</label>
         <Dropdown
           name="clock.size"
@@ -36,7 +36,7 @@ const ClockTab: React.FC<ClockTabProps> = ({ config, onChange }) => {
           ]}
         />
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Clock Font</label>
         <Dropdown
           name="clock.font"
@@ -50,7 +50,7 @@ const ClockTab: React.FC<ClockTabProps> = ({ config, onChange }) => {
           ]}
         />
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-slate-300 text-sm font-semibold">Time Format</label>
         <Dropdown
           name="clock.format"

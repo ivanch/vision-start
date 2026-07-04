@@ -56,16 +56,15 @@ const Header: React.FC<HeaderProps> = ({ config }) => {
   return (
     <>
       {config.clock.enabled && (
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 z-10 flex justify-center w-auto p-2">
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 z-10 flex justify-center w-auto px-3 py-2">
           <Clock config={config} getClockSizeClass={getClockSizeClass} />
         </div>
       )}
-      <div className={`flex flex-col ${config.alignment === 'bottom' ? 'mt-auto' : ''} items-center`}>
+      <div className={`relative z-10 flex flex-col ${config.alignment === 'bottom' ? 'mt-auto' : ''} items-center`}>
         {config.title && (
           <div className="text-center">
             <h1
-              className={`${getTitleSizeClass(config.titleSize)} font-extrabold text-white tracking-tighter mb-3 mt-4`}
-              style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}
+              className={`liquid-title-text ${getTitleSizeClass(config.titleSize)} font-extrabold text-white mb-2 mt-3`}
             >
               {config.title}
             </h1>

@@ -71,7 +71,7 @@ const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, mul
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        className="bg-black/5 backdrop-blur-md border border-white/10 rounded-lg p-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 w-40 h-10 flex justify-between items-center transition-all duration-200 hover:bg-white/5"
+        className="liquid-surface liquid-focus rounded-xl px-3 text-white text-sm w-44 h-11 flex justify-between items-center transition-all duration-200 ease-ios hover:border-white/30"
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -95,7 +95,7 @@ const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, mul
 
       {isOpen && (
         <ul
-          className="absolute z-10 mt-1 w-full bg-black/70 backdrop-blur-xl border border-white/20 rounded-lg shadow-2xl overflow-hidden animate-in slide-in-from-top-2 fade-in duration-150"
+          className="liquid-panel liquid-dropdown-list absolute z-10 mt-2 w-full rounded-xl overflow-hidden"
           role="listbox"
         >
           {options.map((option) => (
@@ -105,8 +105,8 @@ const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, mul
               className={`h-10 px-3 text-white cursor-pointer transition-all duration-150 ease-ios flex items-center
                 ${
                   isSelected(option.value)
-                    ? 'bg-cyan-500/20 text-cyan-300'
-                    : 'hover:bg-white/20 hover:text-white hover:shadow-lg'
+                    ? 'bg-cyan-400/20 text-cyan-200'
+                    : 'hover:bg-white/20 hover:text-white'
                 }`}
               role="option"
               aria-selected={isSelected(option.value)}
@@ -117,7 +117,6 @@ const Dropdown: React.FC<DropdownProps> = ({ options, value, onChange, name, mul
         </ul>
       )}
 
-      {/* Hidden input to mimic native select behavior for forms */}
       {name && !multiple && <input type="hidden" name={name} value={value as string} />}
     </div>
   );

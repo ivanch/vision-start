@@ -1,6 +1,6 @@
 ---
 project_name: Vision Start
-date: 2026-07-02
+date: 2026-07-03
 type: general_overview
 ---
 
@@ -54,13 +54,13 @@ The startpage is composed of widgets and a configuration panel:
 - **Clock** — Optional header clock with selectable size, font, and 12h/24h format.
 - **Title** — Optional big header title (text + size configurable).
 - **Server Status Widget** — Bottom-center glass pill that periodically "pings" configured server addresses and shows online/offline indicators. Ping uses an image-load trick (`components/utils/jsping.js`) with a 5s timeout, at a configurable frequency.
-- **Wallpaper background** — Fullscreen background image with adjustable blur, brightness, and opacity. Supports rotating through multiple wallpapers at a cadence (`1h`–`2d`).
+- **Wallpaper background** — Fullscreen background image with adjustable blur, brightness, and opacity, rendered behind a soft readability layer for the liquid-glass UI. Supports rotating through multiple wallpapers at a cadence (`1h`–`2d`).
   - Built-in wallpapers: Abstract, Abstract Red, Beach, Dark, Mountain, Waves (`components/utils/baseWallpapers.ts`).
   - User wallpapers: upload from a file (≤4MB, ≤4.5MB base64) or add by URL; stored in `chrome.storage.local` when available, falling back to storing the URL directly on CORS failure.
 - **Icon library & auto-fetch** — Website icons can be picked from the [Dashboard Icons](https://dashboardicons.com/) library (metadata pre-downloaded to `public/icon-metadata.json`) or auto-fetched from the target site's `apple-touch-icon`/`icon` link tags, with a fallback to Google's S2 favicon service.
 - **Configuration panel** — Slide-in right-side modal with four tabs: General, Theme, Clock, Server Widget. Includes **Export** (downloads a JSON bundle of selected `localStorage` keys) and **Import** (restores from JSON and reloads the page).
-- **Edit mode** — Toggle via the top-left pencil button; reveals per-tile move/edit buttons, per-category edit buttons, and "add" buttons.
-- **Glassmorphism design language** — Translucent surfaces, `backdrop-blur`, subtle borders, and custom iOS-like easing tokens (`ease-ios`, `ease-spring`) defined in `index.css`.
+- **Edit mode** — Toggle via the top-left pencil button; reveals per-tile glass action toolbars, per-category edit buttons, and ghost glass "add" tiles.
+- **Liquid glass design language** — Soft translucent surfaces, restrained edge highlights, moderate backdrop blur, soft shadows, cyan focus states, and iOS-like easing tokens (`ease-ios`, `ease-spring`, `ease-liquid`) defined in `index.css`.
 
 Performance notes:
 - Modals (`ConfigurationModal`, `WebsiteEditModal`, `CategoryEditModal`) are code-split via `React.lazy` + `Suspense` and only loaded when opened. `ConfigurationModal` is the heaviest chunk (it pulls in `@hello-pangea/dnd` via `ServerWidgetTab`); the rest of `@hello-pangea/dnd` is isolated from the initial load.
@@ -69,7 +69,7 @@ Performance notes:
 - `jsping` cancels its 5s timeout on image resolve/error and nulls the `Image` handlers, preventing leaks across ping cycles.
 - `ServerWidget` batches pending-status updates into one `setState` and depends on a stable servers signature (ids+addresses) so unrelated config edits don't restart pings.
 - Icon metadata (`/icon-metadata.json`) is module-level cached, fetched lazily on first focus of the icon field with `cache: 'force-cache'`, filter debounced ~150ms, and color variants are expanded lazily during filtering rather than upfront.
-- `Wallpaper` caches resolved wallpaper URLs in a module-level `Map` and its CSS transition lives in the static `.wallpaper-transition` class in `index.css`.
+- `Wallpaper` caches resolved wallpaper URLs in a module-level `Map`; its image transition and readability overlay classes live in `index.css`.
 
 Planned / To-do (tracked in `README.md`):
 - Dynamic Weather widget, Search Bar widget, draggable/resizable grid system, Notes/Scratchpad widget, theming (light/dark, accent colors, wallpaper-derived accents, minimal feel toggle), and a general "refactor everything" note.
@@ -83,7 +83,8 @@ vision-start/
 ├── App.tsx                      # Root React component; central state + handlers
 ├── index.tsx                    # React root mount (ReactDOM.createRoot)
 ├── index.html                   # HTML shell, links index.css, mounts #root
-├── index.css                    # Tailwind v4 import + custom easing tokens
+├── index.css                    # Tailwind v4 import + liquid glass utilities, wallpaper overlays, and easing tokens
+├── vite-env.d.ts                # Type declaration for CSS imports used by TypeScript verification
 ├── types.ts                     # Core domain types (Config, Category, Website, Server, Wallpaper)
 ├── constants.tsx                # DEFAULT_CATEGORIES seed data
 ├── manifest.json                # Chrome MV3 manifest (newtab override, storage permission)
@@ -252,4 +253,4 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 
 ---
 
-_Last updated: 2026-07-02. Generated as a general project overview; not a coding-style guide._
+_Last updated: 2026-07-03. Generated as a general project overview; not a coding-style guide._

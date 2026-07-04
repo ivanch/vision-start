@@ -133,7 +133,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-250 ease-ios ${
+        className={`liquid-modal-backdrop fixed inset-0 transition-opacity duration-200 ease-ios ${
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={handleClose}
@@ -141,21 +141,21 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
 
       <div
         ref={menuRef}
-        className={`fixed top-0 right-0 h-full w-full max-w-lg bg-black/50 backdrop-blur-xl border-l border-white/10 text-white flex flex-col transition-transform duration-300 ease-spring transform ${
+        className={`liquid-drawer fixed top-0 right-0 h-full w-full max-w-xl text-white flex flex-col transition-transform duration-300 ease-spring transform ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="p-8 flex-grow overflow-y-auto">
-          <h2 className="text-3xl font-bold mb-6">Configuration</h2>
+        <div className="p-6 sm:p-8 flex-grow overflow-y-auto">
+          <h2 className="liquid-title-text text-3xl font-extrabold mb-6">Configuration</h2>
 
-          <div className="flex border-b border-white/10 mb-6">
+          <div className="liquid-surface grid grid-cols-2 sm:grid-cols-4 gap-1 rounded-2xl p-1 mb-7">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                className={`px-4 py-2 text-lg font-semibold ${
+                className={`liquid-focus rounded-xl px-3 py-2 text-sm font-bold transition-all duration-200 ease-ios ${
                   activeTab === tab.id
-                    ? 'text-cyan-400 border-b-2 border-cyan-400'
-                    : 'text-slate-400'
+                    ? 'bg-cyan-400/25 text-cyan-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
                 onClick={() => setActiveTab(tab.id)}
               >
@@ -188,18 +188,18 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
           )}
         </div>
 
-        <div className="p-8 border-t border-white/10">
-          <div className="flex items-center justify-between gap-4">
+        <div className="p-6 sm:p-8 border-t border-white/10">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-2">
               <button
                 onClick={() => ConfigurationService.exportConfig()}
-                className="bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-sm font-semibold py-1.5 px-3 rounded-lg transition-all duration-150 ease-ios"
+                className="liquid-button liquid-button-secondary liquid-focus text-sm py-2 px-4"
               >
                 Export
               </button>
               <button
                 onClick={() => importInputRef.current?.click()}
-                className="bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-sm font-semibold py-1.5 px-3 rounded-lg transition-all duration-150 ease-ios"
+                className="liquid-button liquid-button-secondary liquid-focus text-sm py-2 px-4"
               >
                 Import
               </button>
@@ -211,19 +211,19 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
                 onChange={handleImportConfig}
               />
             </div>
-            <div className="flex justify-end gap-4">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
                   isSaving.current = true;
                   onSave(config);
                 }}
-                className="bg-green-500 hover:bg-green-400 active:scale-95 text-white font-bold py-2 px-6 rounded-lg transition-all duration-150 ease-ios"
+                className="liquid-button liquid-button-success liquid-focus py-2.5 px-5"
               >
                 Save & Close
               </button>
               <button
                 onClick={handleClose}
-                className="bg-gray-600 hover:bg-gray-500 active:scale-95 text-white font-bold py-2 px-6 rounded-lg transition-all duration-150 ease-ios"
+                className="liquid-button liquid-button-secondary liquid-focus py-2.5 px-5"
               >
                 Cancel
               </button>
