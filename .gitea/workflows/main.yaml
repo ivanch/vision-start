@@ -20,8 +20,13 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+
+      - name: Setup required tools
+        run: sudo apt-get install zip jq curl -y
+
       - name: Install JS dependencies
         run: npm install
+
       - name: Run build
         run: npm run build
 
@@ -33,7 +38,9 @@ jobs:
           mv manifest.json vision-start/
 
       - name: Create zip archive
-        run: zip -r vision-start-${{ gitea.ref_name }}.zip vision-start
+        run: |
+          cd vision-start
+          zip -r ../vision-start-${{ gitea.ref_name }}.zip *
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
