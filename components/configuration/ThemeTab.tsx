@@ -21,6 +21,24 @@ const getRangeStyle = (value: number, min: number, max: number): RangeStyle => {
   return { '--range-progress': `${progress}%` };
 };
 
+const MIN_WALLPAPER_FREQUENCY_HOURS = 1;
+const MAX_WALLPAPER_FREQUENCY_HOURS = 48;
+const DEFAULT_WALLPAPER_FREQUENCY_HOURS = 24;
+
+const clampWallpaperFrequencyHours = (hours: number): number =>
+  Math.min(MAX_WALLPAPER_FREQUENCY_HOURS, Math.max(MIN_WALLPAPER_FREQUENCY_HOURS, Math.round(hours)));
+
+const getWallpaperFrequencyHours = (frequency: string): number => {
+  const match = frequency.match(/^(\d+)(h|d)$/);
+  if (!match) return DEFAULT_WALLPAPER_FREQUENCY_HOURS;
+  const value = Number(match[1]);
+  const hours = match[2] === 'd' ? value * 24 : value;
+  return clampWallpaperFrequencyHours(hours);
+};
+
+const formatWallpaperFrequency = (hours: number): string =>
+  `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+
 const ThemeTab: React.FC<ThemeTabProps> = ({
   config,
   onChange,
@@ -35,6 +53,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
   const [newWallpaperName, setNewWallpaperName] = useState('');
   const [newWallpaperUrl, setNewWallpaperUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wallpaperFrequencyHours = getWallpaperFrequencyHours(config.wallpaperFrequency);
 
   const handleAddWallpaper = async () => {
     if (newWallpaperUrl.trim() === '') return;
@@ -75,19 +94,25 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
       {Array.isArray(config.currentWallpapers) && config.currentWallpapers.length > 1 && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <label className="text-slate-300 text-sm font-semibold">Change Frequency</label>
-          <Dropdown
-            name="wallpaperFrequency"
-            value={config.wallpaperFrequency}
-            onChange={(e) => onChange({ wallpaperFrequency: e.target.value as string })}
-            options={[
-              { value: '1h', label: '1 hour' },
-              { value: '3h', label: '3 hours' },
-              { value: '6h', label: '6 hours' },
-              { value: '12h', label: '12 hours' },
-              { value: '1d', label: '1 day' },
-              { value: '2d', label: '2 days' },
-            ]}
-          />
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min={MIN_WALLPAPER_FREQUENCY_HOURS}
+              max={MAX_WALLPAPER_FREQUENCY_HOURS}
+              step="1"
+              value={wallpaperFrequencyHours}
+              onChange={(e) => onChange({ wallpaperFrequency: `${Number(e.target.value)}h` })}
+              className="liquid-range"
+              style={getRangeStyle(
+                wallpaperFrequencyHours,
+                MIN_WALLPAPER_FREQUENCY_HOURS,
+                MAX_WALLPAPER_FREQUENCY_HOURS,
+              )}
+            />
+            <span className="w-20 text-right text-sm text-slate-200">
+              {formatWallpaperFrequency(wallpaperFrequencyHours)}
+            </span>
+          </div>
         </div>
       )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

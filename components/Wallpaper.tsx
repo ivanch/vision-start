@@ -13,15 +13,18 @@ interface WallpaperProps {
   wallpaperVersion: number;
 }
 
+const MIN_WALLPAPER_FREQUENCY_MS = 60 * 60 * 1000;
+const MAX_WALLPAPER_FREQUENCY_MS = 48 * 60 * 60 * 1000;
+const DEFAULT_WALLPAPER_FREQUENCY_MS = 24 * 60 * 60 * 1000;
+
 const parseFrequencyToMs = (freq: string): number => {
-  if (!freq) return 24 * 60 * 60 * 1000; // default 1 day
-  const match = freq.match(/(\d+)(h|d)/);
-  if (!match) return 24 * 60 * 60 * 1000;
+  if (!freq) return DEFAULT_WALLPAPER_FREQUENCY_MS;
+  const match = freq.match(/^(\d+)(h|d)$/);
+  if (!match) return DEFAULT_WALLPAPER_FREQUENCY_MS;
   const value = parseInt(match[1], 10);
   const unit = match[2];
-  if (unit === 'h') return value * 60 * 60 * 1000;
-  if (unit === 'd') return value * 24 * 60 * 60 * 1000;
-  return 24 * 60 * 60 * 1000;
+  const frequencyMs = unit === 'd' ? value * 24 * 60 * 60 * 1000 : value * 60 * 60 * 1000;
+  return Math.min(MAX_WALLPAPER_FREQUENCY_MS, Math.max(MIN_WALLPAPER_FREQUENCY_MS, frequencyMs));
 };
 
 const wallpaperUrlCache = new Map<string, string | undefined>();

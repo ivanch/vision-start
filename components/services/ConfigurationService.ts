@@ -43,13 +43,37 @@ const safeParse = (value: string | null): unknown => {
 const toStorageString = (value: unknown): string =>
   typeof value === 'string' ? value : JSON.stringify(value);
 
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+const deepMerge = <T>(base: T, stored: unknown): T => {
+  if (isPlainObject(base)) {
+    const result: Record<string, unknown> = { ...(base as Record<string, unknown>) };
+    const storedObj = isPlainObject(stored) ? stored : {};
+    for (const key of Object.keys(result)) {
+      if (Object.prototype.hasOwnProperty.call(storedObj, key)) {
+        result[key] = deepMerge(result[key], storedObj[key]);
+      }
+    }
+    return result as T;
+  }
+  if (Array.isArray(base)) {
+    return (Array.isArray(stored) ? stored : base) as T;
+  }
+  if (stored === null) return base;
+  return typeof stored === typeof base ? (stored as T) : base;
+};
+
+export const normalizeConfig = (stored: unknown): Config =>
+  deepMerge(DEFAULT_CONFIG, stored);
+
 export const ConfigurationService = {
   loadConfig(): Config {
     try {
       const stored = localStorage.getItem('config');
       if (stored) {
         const parsed = JSON.parse(stored);
-        return { ...DEFAULT_CONFIG, ...parsed };
+        return normalizeConfig(parsed);
       }
     } catch (error) {
       console.error('Error parsing config from localStorage', error);
@@ -159,12 +183,12 @@ export const ConfigurationService = {
       throw new Error(`No required keys found. Expected: ${REQUIRED_LOCAL_STORAGE_KEYS.join(', ')}`);
     }
 
-    const importedConfig = (localStorageData as Record<string, unknown>).config as Config;
+    const importedConfig = (localStorageData as Record<string, unknown>).config;
     const importedUserWallpapers = (localStorageData as Record<string, unknown>)
-      .userWallpapers as Wallpaper[];
+      .userWallpapers;
 
     return {
-      config: importedConfig || { ...DEFAULT_CONFIG },
+      config: normalizeConfig(importedConfig),
       userWallpapers: Array.isArray(importedUserWallpapers) ? importedUserWallpapers : [],
     };
   },

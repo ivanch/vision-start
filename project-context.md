@@ -1,6 +1,6 @@
 ---
 project_name: Vision Start
-date: 2026-07-03
+date: 2026-07-08
 type: general_overview
 ---
 
@@ -54,7 +54,7 @@ The startpage is composed of widgets and a configuration panel:
 - **Clock** — Optional header clock with selectable size, font, and 12h/24h format.
 - **Title** — Optional big header title (text + size configurable).
 - **Server Status Widget** — Bottom-center glass pill that periodically "pings" configured server addresses and shows online/offline indicators. Ping uses an image-load trick (`components/utils/jsping.js`) with a 5s timeout, at a configurable frequency.
-- **Wallpaper background** — Fullscreen background image with adjustable blur, brightness, and opacity, rendered behind a soft readability layer for the liquid-glass UI. Supports rotating through multiple wallpapers at a cadence (`1h`–`2d`).
+- **Wallpaper background** — Fullscreen background image with adjustable blur, brightness, and opacity, rendered behind a soft readability layer for the liquid-glass UI. Supports rotating through multiple wallpapers at an hourly cadence selected by slider (`1h`–`48h`).
   - Built-in wallpapers: Abstract, Abstract Red, Beach, Dark, Mountain, Waves (`components/utils/baseWallpapers.ts`).
   - User wallpapers: upload from a file (≤4MB, ≤4.5MB base64) or add by URL; stored in `chrome.storage.local` when available, falling back to storing the URL directly on CORS failure.
 - **Icon library & auto-fetch** — Website icons can be picked from the [Dashboard Icons](https://dashboardicons.com/) library (metadata pre-downloaded to `public/icon-metadata.json`) or auto-fetched from the target site's `apple-touch-icon`/`icon` link tags, with a fallback to Google's S2 favicon service.
@@ -109,7 +109,7 @@ vision-start/
 │   │
 │   ├── configuration/
 │   │   ├── GeneralTab.tsx           # Title, sizes, alignment, tile size
-│   │   ├── ThemeTab.tsx             # Background selection, wallpaper mgmt, blur/brightness/opacity
+│   │   ├── ThemeTab.tsx             # Background selection, wallpaper cadence, wallpaper mgmt, blur/brightness/opacity
 │   │   ├── ClockTab.tsx             # Clock enable/size/font/format
 │   │   └── ServerWidgetTab.tsx      # Server widget enable/ping/servers (drag-to-reorder)
 │   │
@@ -158,9 +158,9 @@ The shape of all persisted data lives in `types.ts`:
 - **`Server`** — `id`, `name`, `address`
 - **`Category`** — `id`, `name`, `websites: Website[]`
 - **`Wallpaper`** — `name`, optional `url` or `base64`
-- **`Config`** — Everything else: title, wallpaper list + frequency/blur/brightness/opacity, titleSize, vertical & horizontal alignment, tileSize, `clock {enabled, size, font, format}`, `serverWidget {enabled, pingFrequency, servers}`
+- **`Config`** — Everything else: title, wallpaper list + hourly frequency/blur/brightness/opacity, titleSize, vertical & horizontal alignment, tileSize, `clock {enabled, size, font, format}`, `serverWidget {enabled, pingFrequency, servers}`
 
-`ConfigurationService` (`components/services/ConfigurationService.ts`) is the source of truth for default config and persistence helpers.
+`ConfigurationService` (`components/services/ConfigurationService.ts`) is the source of truth for default config and persistence helpers. Config loaded from `localStorage` (and imported from export files) is run through `normalizeConfig()`, a schema-driven deep merge against `DEFAULT_CONFIG`: nested blocks (`clock`, `serverWidget`) inherit new sub-fields added to defaults, stored values with the wrong type fall back to defaults, and keys absent from the default schema are pruned. The merge is self-healing — `App.tsx`'s persist-`useEffect` writes the normalized shape back to `localStorage` on first run.
 
 Storage layout (browser-side):
 
@@ -224,7 +224,7 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 - **`EditModal.tsx` has been removed.** It was a legacy drag-and-drop editor that imported non-existent `lucide-react` and `./IconPicker`; it was never wired into `App.tsx`. Use `WebsiteEditModal.tsx` / `CategoryEditModal.tsx` instead.
 - **`@hello-pangea/dnd`** is used only in `ServerWidgetTab.tsx` (server reorder), which itself is imported by the lazy-loaded `ConfigurationModal`, so it lives in a separate chunk and is absent from the initial page load. `WebsiteTile` moves tiles within their own category via simple left/right buttons (no cross-category movement), not drag-and-drop.
 - **Chrome storage is optional.** `StorageLocalManager` checks availability once (`checkChromeStorageLocalAvailable`) and caches it. When unavailable (e.g., running as a plain web page), wallpaper upload/delete flows are gated off and `addWallpaperToChromeStorageLocal` throws.
-- **Wallpaper rotation** is time-based, evaluated on render/mount rather than via a timer. It reads `wallpaperState` from `localStorage`, advances the index if the frequency window has elapsed, and writes it back. The renderer clamps `currentIndex` to the valid range of the current selection and walks the list forward to find a wallpaper whose data actually resolves (so deleting the currently-displayed wallpaper, or shrinking the selection, never leaves the background blank); if no wallpaper resolves, the background layer is hidden. When the selection becomes empty, `wallpaperState` is reset and the background is hidden. A manual "Next Wallpaper" button in the Theme tab advances `currentIndex` (with wraparound) and bumps a `wallpaperVersion` nonce in `App.tsx` that retriggers the renderer.
+- **Wallpaper rotation** is time-based, evaluated on render/mount rather than via a timer. It reads `wallpaperState` from `localStorage`, advances the index if the frequency window has elapsed, and writes it back; the frequency is clamped to 1–48 hours, while older saved values like `1d`/`2d` still resolve to their hour equivalents. The renderer clamps `currentIndex` to the valid range of the current selection and walks the list forward to find a wallpaper whose data actually resolves (so deleting the currently-displayed wallpaper, or shrinking the selection, never leaves the background blank); if no wallpaper resolves, the background layer is hidden. When the selection becomes empty, `wallpaperState` is reset and the background is hidden. A manual "Next Wallpaper" button in the Theme tab advances `currentIndex` (with wraparound) and bumps a `wallpaperVersion` nonce in `App.tsx` that retriggers the renderer.
 - **Icon picker** in `WebsiteEditModal` loads `/icon-metadata.json` at runtime and expands each icon's `colors` into duplicate-name entries so color variants are searchable.
 - **`tsconfig.json` does not emit JS** (`noEmit: true`, bundler resolution); Vite handles all transpilation.
 - **`tailwind.config.js` safelists** a set of `w-[Npx]/h-[Npx]` classes because `WebsiteTile` generates tailwind classes dynamically from `tileSize` (`w-[42px]`, etc.).
@@ -253,4 +253,4 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 
 ---
 
-_Last updated: 2026-07-03. Generated as a general project overview; not a coding-style guide._
+_Last updated: 2026-07-08. Generated as a general project overview; not a coding-style guide._
