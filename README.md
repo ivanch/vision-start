@@ -1,5 +1,5 @@
-<div style="display: flex; justify-content: center; font-size: 2rem; font-weight: bold;">
-Vision Start
+<div style="display: flex; justify-content: center; align-items: center; font-size: 2rem; font-weight: bold;">
+<img src="extension/icons/vision-48.png" alt="Vision Start" width="32" height="32" style="margin-right: 1rem;"> Vision Start
 </div>
 
 <div style="display: flex; justify-content: center; font-size: 1.5rem;">

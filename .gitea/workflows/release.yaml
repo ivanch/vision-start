@@ -27,11 +27,12 @@ jobs:
         run: npm install
 
       - name: Run build
-        run: npm run build
+        run: |
+          bash scripts/prepare_release.sh
+          npm run build
 
       - name: Prepare release
         run: |
-          bash scripts/prepare_release.sh
           mv dist vision-start/
           mv extension vision-start/
           mv manifest.json vision-start/

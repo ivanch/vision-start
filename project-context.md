@@ -88,7 +88,6 @@ vision-start/
 ├── types.ts                     # Core domain types (Config, Category, Website, Server, Wallpaper)
 ├── constants.tsx                # DEFAULT_CATEGORIES seed data
 ├── manifest.json                # Chrome MV3 manifest (newtab override, storage permission)
-├── icon.png                     # Extension icon source
 │
 ├── components/
 │   ├── Clock.tsx                # Header clock widget
