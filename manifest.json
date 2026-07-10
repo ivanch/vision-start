@@ -10,9 +10,9 @@
     "storage"
   ],
   "icons": {
-    "16": "assets/icons/vision-16.png",
-    "48": "assets/icons/vision-48.png",
-    "128": "assets/icons/vision-128.png"
+    "16": "extension/icons/vision-16.png",
+    "48": "extension/icons/vision-48.png",
+    "128": "extension/icons/vision-128.png"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';"
