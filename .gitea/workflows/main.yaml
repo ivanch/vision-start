@@ -25,17 +25,21 @@ jobs:
       - name: Run build
         run: npm run build
 
-      - name: Package dist as zip
+      - name: Prepare release
         run: |
-          cd dist
-          zip -r ../vision-start-build.zip .
+          bash scripts/prepare_release.sh
+          mv dist vision-start/
+          mv assets vision-start/
+          mv manifest.json vision-start/
 
-      - name: Upload build artifact
+      - name: Create zip archive
+        run: zip -r vision-start-${{ gitea.ref_name }}.zip vision-start
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: vision-start-build
-          path: vision-start-build.zip
-          retention-days: 30
+          name: release-zip
+          path: vision-start-${{ gitea.ref_name }}.zip
 
   build_vision_start:
     name: Build Vision Start Image
