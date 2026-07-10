@@ -3,7 +3,7 @@ Vision Start
 </div>
 
 <div style="display: flex; justify-content: center; font-size: 1.5rem;">
-A light liquid-glass, modern and customizable startpage built with React.
+A light, modern and customizable startpage built with React.
 </div>
 
 <span style="display: block; text-align: center; font-size: 1.2rem;">Try it here: <a href="http://vision-start.ivanch.me">http://vision-start.ivanch.me</a></span>

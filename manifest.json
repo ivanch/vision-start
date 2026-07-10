@@ -2,13 +2,18 @@
   "manifest_version": 3,
   "name": "Vision Startpage",
   "version": "1.0",
-  "description": "A beautiful and customizable startpage for your browser.",
+  "description": "A light, modern and customizable startpage.",
   "chrome_url_overrides": {
     "newtab": "index.html"
   },
   "permissions": [
     "storage"
   ],
+  "icons": {
+    "16": "assets/icons/vision-16.png",
+    "48": "assets/icons/vision-48.png",
+    "128": "assets/icons/vision-128.png"
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';"
   }
