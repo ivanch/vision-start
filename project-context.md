@@ -208,6 +208,7 @@ Build, then combine `dist/` + `manifest.json` into a folder and "Load unpacked" 
 `Dockerfile` builds in Node 22 Alpine (`npm ci` → runs `scripts/prepare_release.sh` → `npm run build`) and serves `/app/dist` + `manifest.json` via nginx:alpine on port 80.
 
 ### CI/CD (Gitea Actions)
+- `release.yaml` validates each `vX.Y.Z` tag and replaces tracked `v0.0.0`/`0.0.0` placeholders in each build checkout before producing the extension archive and production image.
 - **`main.yaml`** — Triggers on push to `main` (and `workflow_dispatch`). Builds, pushes a `staging` multi-arch (amd64/arm64) image to `git.ivanch.me/ivanch/vision-start:staging`, then SSH-deploys on the staging host via `docker compose up -d --force-recreate`.
 - **`release.yaml`** — Triggers on `v*` tags. Builds, zips `dist/` + `manifest.json` as `vision-start-<tag>.zip`, runs `scripts/check_virustotal.sh` against it (publishes analysis URL + detection ratio on the release body), creates a Gitea release, pushes a `latest` multi-arch image, and SSH-deploys to production.
 
@@ -252,4 +253,4 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 
 ---
 
-_Last updated: 2026-07-08. Generated as a general project overview; not a coding-style guide._
+_Last updated: 2026-07-10. Generated as a general project overview; not a coding-style guide._

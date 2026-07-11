@@ -20,6 +20,25 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
+      - name: Set version from tag
+        env:
+          RELEASE_TAG: ${{ gitea.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a vX.Y.Z tag, got: $RELEASE_TAG"
+            exit 1
+          fi
+          VERSION="${RELEASE_TAG#v}"
+          MATCHING_FILES=$(git grep -Il -e '\bv0\.0\.0\b' -e '\b0\.0\.0\b' || true)
+          if [ -n "$MATCHING_FILES" ]; then
+            while IFS= read -r file; do
+              sed -i \
+                -e "s/\\bv0\\.0\\.0\\b/$RELEASE_TAG/g" \
+                -e "s/\\b0\\.0\\.0\\b/$VERSION/g" \
+                "$file"
+            done <<< "$MATCHING_FILES"
+          fi
+
       - name: Setup required tools
         run: sudo apt-get install zip jq curl -y
 
@@ -110,6 +129,25 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
+
+      - name: Set version from tag
+        env:
+          RELEASE_TAG: ${{ gitea.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a vX.Y.Z tag, got: $RELEASE_TAG"
+            exit 1
+          fi
+          VERSION="${RELEASE_TAG#v}"
+          MATCHING_FILES=$(git grep -Il -e '\bv0\.0\.0\b' -e '\b0\.0\.0\b' || true)
+          if [ -n "$MATCHING_FILES" ]; then
+            while IFS= read -r file; do
+              sed -i \
+                -e "s/\\bv0\\.0\\.0\\b/$RELEASE_TAG/g" \
+                -e "s/\\b0\\.0\\.0\\b/$VERSION/g" \
+                "$file"
+            done <<< "$MATCHING_FILES"
+          fi
 
       - name: Log in to Container Registry
         run: |
