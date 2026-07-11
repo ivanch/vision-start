@@ -36,6 +36,7 @@ jobs:
 
       - name: Prepare archive
         run: |
+          mkdir vision-start
           mv dist vision-start/
           mv extension vision-start/
           mv manifest.json vision-start/
@@ -76,7 +77,13 @@ jobs:
           name: pr-release-zip
 
       - name: Unpack build artifact
-        run: unzip -o -q ${{ env.ARCHIVE_NAME }}
+        run: |
+          unzip -o -q ${{ env.ARCHIVE_NAME }}
+          if [ ! -d dist ]; then
+            echo "The build artifact does not contain dist/."
+            unzip -l ${{ env.ARCHIVE_NAME }}
+            exit 1
+          fi
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
