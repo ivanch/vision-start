@@ -33,12 +33,16 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
   const [icon, setIcon] = useState(website ? website.icon : '');
   const [iconQuery, setIconQuery] = useState('');
   const [filteredIcons, setFilteredIcons] = useState<IconMetadata[]>([]);
-  const [iconMetadata, setIconMetadata] = useState<IconMetadata[]>([]);
-  const [iconsFetched, setIconsFetched] = useState(false);
+  const [iconMetadata, setIconMetadata] = useState<IconMetadata[]>(() => iconMetadataCache ?? []);
+  const [iconsFetched, setIconsFetched] = useState(() => iconMetadataCache !== null);
   const debounceRef = useRef<number | null>(null);
 
   const ensureIconMetadata = () => {
-    if (iconMetadataCache || iconsFetched) return;
+    if (iconMetadataCache) {
+      setIconMetadata(iconMetadataCache);
+      return;
+    }
+    if (iconsFetched) return;
     setIconsFetched(true);
     fetch('/icon-metadata.json', { cache: 'force-cache' })
       .then(response => response.json())

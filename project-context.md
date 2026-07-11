@@ -68,7 +68,7 @@ Performance notes:
 - `Clock` updates on the minute boundary (one `setTimeout` → `setInterval(60_000)`) instead of every second.
 - `jsping` cancels its 5s timeout on image resolve/error and nulls the `Image` handlers, preventing leaks across ping cycles.
 - `ServerWidget` batches pending-status updates into one `setState` and depends on a stable servers signature (ids+addresses) so unrelated config edits don't restart pings.
-- Icon metadata (`/icon-metadata.json`) is module-level cached, fetched lazily on first focus of the icon field with `cache: 'force-cache'`, filter debounced ~150ms, and color variants are expanded lazily during filtering rather than upfront.
+- Icon metadata (`/icon-metadata.json`) is module-level cached and hydrated into each icon-picker instance, fetched lazily on first focus of the icon field with `cache: 'force-cache'`, filter debounced ~150ms, and color variants are expanded lazily during filtering rather than upfront.
 - `Wallpaper` caches resolved wallpaper URLs in a module-level `Map`; its image transition and readability overlay classes live in `index.css`.
 
 Planned / To-do (tracked in `README.md`):
