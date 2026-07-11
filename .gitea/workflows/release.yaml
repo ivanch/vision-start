@@ -31,11 +31,17 @@ jobs:
           VERSION="${RELEASE_TAG#v}"
           sed -i -e "s/\"version\": \"0\.0\.0\"/\"version\": \"$VERSION\"/" manifest.json
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
       - name: Setup required tools
         run: sudo apt-get install zip jq curl -y
 
       - name: Install JS dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run build
         run: |
@@ -190,6 +196,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
 
       - name: Install JS dependencies
         run: npm ci
@@ -206,6 +213,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: release-screenshots
+          retention-days: 30
           path: |
             screenshots/home.png
             screenshots/editing.png
