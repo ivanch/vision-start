@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vision Startpage",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "A light, modern and customizable startpage.",
   "chrome_url_overrides": {
     "newtab": "index.html"

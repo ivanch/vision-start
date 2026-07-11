@@ -20,11 +20,28 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
+      - name: Set version from tag
+        env:
+          RELEASE_TAG: ${{ gitea.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a vX.Y.Z tag, got: $RELEASE_TAG"
+            exit 1
+          fi
+          VERSION="${RELEASE_TAG#v}"
+          sed -i -e "s/\"version\": \"0\.0\.0\"/\"version\": \"$VERSION\"/" manifest.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
       - name: Setup required tools
         run: sudo apt-get install zip jq curl -y
 
       - name: Install JS dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run build
         run: |
@@ -83,7 +100,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [build, virus-total-check]
+    needs: [build, virus-total-check, capture_screenshots]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -91,6 +108,11 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: release-zip
+      - name: Download screenshot artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: release-screenshots
+          path: release-screenshots
       - name: Release zip
         uses: akkuman/gitea-release-action@v1
         with:
@@ -101,7 +123,11 @@ jobs:
             **Virus Total Detection Ratio:** ${{ needs.virus-total-check.outputs.detection-ratio }}
           name: ${{ gitea.ref_name }}
           tag_name: ${{ gitea.ref_name }}
-          files: vision-start-${{ gitea.ref_name }}.zip
+          files: |
+            vision-start-${{ gitea.ref_name }}.zip
+            release-screenshots/home.png
+            release-screenshots/editing.png
+            release-screenshots/configuration.png
 
   build_vision_start:
     name: Build Vision Start Image
@@ -110,6 +136,17 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
+
+      - name: Set version from tag
+        env:
+          RELEASE_TAG: ${{ gitea.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a vX.Y.Z tag, got: $RELEASE_TAG"
+            exit 1
+          fi
+          VERSION="${RELEASE_TAG#v}"
+          sed -i -e "s/\"version\": \"0\.0\.0\"/\"version\": \"$VERSION\"/" manifest.json
 
       - name: Log in to Container Registry
         run: |
@@ -146,3 +183,38 @@ jobs:
             cd ${{ secrets.PROD_DIR }}
             docker compose pull
             docker compose up -d --force-recreate
+
+  capture_screenshots:
+    name: Capture Vision Start Screenshots
+    runs-on: ubuntu-amd64
+    needs: deploy_vision_start
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture release screenshots
+        env:
+          SCREENSHOT_BASE_URL: http://vision-start.ivanch.me
+        run: npm run capture:screenshots
+
+      - name: Upload release screenshots
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-screenshots
+          retention-days: 30
+          path: |
+            screenshots/home.png
+            screenshots/editing.png
+            screenshots/configuration.png
