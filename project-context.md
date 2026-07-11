@@ -212,7 +212,7 @@ Build, then combine `dist/` + `manifest.json` into a folder and "Load unpacked" 
 `Dockerfile` builds in Node 22 Alpine (`npm ci` → runs `scripts/prepare_release.sh` → `npm run build`) and serves `/app/dist` + `manifest.json` via nginx:alpine on port 80.
 
 ### CI/CD (Gitea Actions)
-- `release.yaml` validates each `vX.Y.Z` tag and replaces tracked `v0.0.0`/`0.0.0` placeholders in each build checkout before producing the extension archive and production image.
+- `release.yaml` validates each `vX.Y.Z` tag and stamps the version into `manifest.json` (`"version": "0.0.0"` → the tag) in each build checkout before producing the extension archive and production image.
 - **`pull-request.yaml`** — Triggers on pull request open, reopen, and synchronization. It builds and uploads a PR extension archive containing `dist/`, unpacks that archive in a separate Playwright job to generate the three demo screenshots, and uploads both artifacts. For same-repository PRs, it maintains one Gitea PR comment with inline image attachments; fork PRs retain artifacts but skip the comment because their workflow token is read-only.
 - After `deploy_vision_start` succeeds, `release.yaml` uses Playwright Chromium against the deployed production page and seeds each browser context from `scripts/demoData.json`. It regenerates `home.png`, `editing.png`, and `configuration.png` at exactly 1280×800, uploads them as artifacts, and attaches them as individual Gitea release assets.
 - **`main.yaml`** — Triggers on push to `main` (and `workflow_dispatch`). Builds, pushes a `staging` multi-arch (amd64/arm64) image to `git.ivanch.me/ivanch/vision-start:staging`, then SSH-deploys on the staging host via `docker compose up -d --force-recreate`.
