@@ -64,10 +64,19 @@ jobs:
         with:
           node-version: 22
 
+      - name: Set up required tools
+        run: sudo apt-get install unzip -y
+
       - name: Install JS dependencies
-        run: |
-          mv vision-start/* .
-          npm ci
+        run: npm ci
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: pr-release-zip
+
+      - name: Unpack build artifact
+        run: unzip -o -q ${{ env.ARCHIVE_NAME }}
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
