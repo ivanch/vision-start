@@ -1,0 +1,168 @@
+name: Build Pull Request
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+env:
+  ARCHIVE_NAME: vision-start-pr-${{ gitea.event.pull_request.number }}.zip
+
+jobs:
+  build:
+    name: Build Pull Request Archive
+    runs-on: ubuntu-amd64
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up required tools
+        run: sudo apt-get install zip wget -y
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Run build
+        run: |
+          bash scripts/prepare_release.sh
+          npm run build
+
+      - name: Prepare archive
+        run: |
+          mv dist vision-start/
+          mv extension vision-start/
+          mv manifest.json vision-start/
+
+      - name: Create zip archive
+        run: |
+          cd vision-start
+          zip -r ../${{ env.ARCHIVE_NAME }} *
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pr-release-zip
+          path: ${{ env.ARCHIVE_NAME }}
+
+  capture_screenshots:
+    name: Capture Pull Request Screenshots
+    runs-on: ubuntu-amd64
+    needs: build
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up required tools
+        run: sudo apt-get install unzip -y
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: pr-release-zip
+
+      - name: Unpack build artifact
+        run: unzip -q ${{ env.ARCHIVE_NAME }}
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture screenshots
+        run: npm run capture:screenshots
+
+      - name: Upload screenshot artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pr-screenshots
+          path: |
+            screenshots/home.png
+            screenshots/editing.png
+            screenshots/configuration.png
+
+  publish_screenshot_preview:
+    name: Publish Pull Request Screenshot Preview
+    runs-on: ubuntu-amd64
+    needs: capture_screenshots
+    if: ${{ gitea.event.pull_request.head.repo.full_name == gitea.repository }}
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      - name: Set up required tools
+        run: sudo apt-get install curl jq -y
+
+      - name: Download screenshot artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: pr-screenshots
+          path: screenshots
+
+      - name: Update pull request screenshot preview
+        continue-on-error: true
+        env:
+          GITEA_API_URL: ${{ gitea.server_url }}/api/v1
+          GITEA_TOKEN: ${{ gitea.token }}
+          REPOSITORY: ${{ gitea.repository }}
+          PR_NUMBER: ${{ gitea.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          OWNER="${REPOSITORY%%/*}"
+          REPO="${REPOSITORY#*/}"
+          MARKER='<!-- vision-start-pr-screenshots -->'
+          COMMENTS_URL="$GITEA_API_URL/repos/$OWNER/$REPO/issues/$PR_NUMBER/comments"
+          COMMENTS=$(curl -fsS -H "Authorization: token $GITEA_TOKEN" "$COMMENTS_URL")
+          COMMENT_ID=$(printf '%s' "$COMMENTS" | jq -r --arg marker "$MARKER" '.[] | select(.body | contains($marker)) | .id' | tail -n 1)
+
+          if [ -z "$COMMENT_ID" ] || [ "$COMMENT_ID" = "null" ]; then
+            PAYLOAD=$(jq -n --arg body "$MARKER" '{body: $body}')
+            COMMENT_ID=$(curl -fsS -X POST \
+              -H "Authorization: token $GITEA_TOKEN" \
+              -H 'Content-Type: application/json' \
+              --data "$PAYLOAD" \
+              "$COMMENTS_URL" | jq -r '.id')
+          fi
+
+          ASSETS_URL="$GITEA_API_URL/repos/$OWNER/$REPO/issues/comments/$COMMENT_ID/assets"
+          for ASSET_ID in $(curl -fsS -H "Authorization: token $GITEA_TOKEN" "$ASSETS_URL" | jq -r '.[].id'); do
+            curl -fsS -X DELETE -H "Authorization: token $GITEA_TOKEN" "$ASSETS_URL/$ASSET_ID"
+          done
+
+          upload_asset() {
+            curl -fsS -X POST \
+              -H "Authorization: token $GITEA_TOKEN" \
+              -F "attachment=@$1;type=image/png" \
+              "$ASSETS_URL" | jq -r '.browser_download_url'
+          }
+
+          HOME_URL=$(upload_asset screenshots/home.png)
+          EDITING_URL=$(upload_asset screenshots/editing.png)
+          CONFIGURATION_URL=$(upload_asset screenshots/configuration.png)
+          BODY=$(printf '%s\n\n%s\n\n%s\n%s\n\n%s\n%s\n\n%s\n%s' \
+            "$MARKER" \
+            '## Visual preview' \
+            '### Home' \
+            "![Home]($HOME_URL)" \
+            '### Editing' \
+            "![Editing]($EDITING_URL)" \
+            '### Configuration' \
+            "![Configuration]($CONFIGURATION_URL)")
+          PAYLOAD=$(jq -n --arg body "$BODY" '{body: $body}')
+          curl -fsS -X PATCH \
+            -H "Authorization: token $GITEA_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data "$PAYLOAD" \
+            "$GITEA_API_URL/repos/$OWNER/$REPO/issues/comments/$COMMENT_ID"

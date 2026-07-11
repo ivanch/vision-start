@@ -40,6 +40,7 @@ Live instances / artifacts:
 | Container | Node 22 Alpine build stage → nginx Alpine serving `dist/` |
 | Extension packaging | Manifest V3 (`manifest.json`) consuming `dist/` + `manifest.json` zipped as `vision-start-<tag>.zip` |
 | CI/CD | Gitea Actions workflows (`.gitea/workflows/`) |
+| Release screenshots | Playwright 1.61.1 + Chromium capture the deployed production page at a fixed 1280×800 viewport |
 
 Entry points: `index.html` → `index.tsx` → `App.tsx`.
 
@@ -125,13 +126,16 @@ vision-start/
 │   ├── favicon.ico
 │   └── icon-metadata.json        # Dashboard Icons metadata (gitignored; fetched at release build)
 │
-├── screenshots/                  # README screenshots (dark page, editing, configuration)
+├── screenshots/                  # README/release screenshots (home, editing, configuration; regenerated at 1280×800)
 ├── scripts/
+│   ├── capture_screenshots.mjs  # Loads demoData, captures home/edit/configuration with Playwright, and can target a deployed URL
+│   ├── demoData.json            # Base64-encoded localStorage fixture used for release screenshots
 │   ├── prepare_release.sh        # Downloads icon-metadata.json from homarr-labs/dashboard-icons
 │   └── check_virustotal.sh       # Uploads the release zip to VirusTotal, waits for & reports the verdict
 │
 ├── .gitea/workflows/
 │   ├── main.yaml                 # On push to main: build, push staging Docker image, SSH-deploy to staging
+│   ├── pull-request.yaml         # On PR updates: build/zip, capture screenshots, and publish an inline visual preview
 │   └── release.yaml              # On v* tag: build, zip, VirusTotal check, Gitea release, push latest image, SSH-deploy to prod
 │
 ├── Dockerfile                    # Node 22 build → nginx serving dist/ (with gzip via nginx.conf)
@@ -209,6 +213,8 @@ Build, then combine `dist/` + `manifest.json` into a folder and "Load unpacked" 
 
 ### CI/CD (Gitea Actions)
 - `release.yaml` validates each `vX.Y.Z` tag and replaces tracked `v0.0.0`/`0.0.0` placeholders in each build checkout before producing the extension archive and production image.
+- **`pull-request.yaml`** — Triggers on pull request open, reopen, and synchronization. It builds and uploads a PR extension archive, unpacks that archive in a separate Playwright job to generate the three demo screenshots, and uploads both artifacts. For same-repository PRs, it maintains one Gitea PR comment with inline image attachments; fork PRs retain artifacts but skip the comment because their workflow token is read-only.
+- After `deploy_vision_start` succeeds, `release.yaml` uses Playwright Chromium against the deployed production page and seeds each browser context from `scripts/demoData.json`. It regenerates `home.png`, `editing.png`, and `configuration.png` at exactly 1280×800, uploads them as artifacts, and attaches them as individual Gitea release assets.
 - **`main.yaml`** — Triggers on push to `main` (and `workflow_dispatch`). Builds, pushes a `staging` multi-arch (amd64/arm64) image to `git.ivanch.me/ivanch/vision-start:staging`, then SSH-deploys on the staging host via `docker compose up -d --force-recreate`.
 - **`release.yaml`** — Triggers on `v*` tags. Builds, zips `dist/` + `manifest.json` as `vision-start-<tag>.zip`, runs `scripts/check_virustotal.sh` against it (publishes analysis URL + detection ratio on the release body), creates a Gitea release, pushes a `latest` multi-arch image, and SSH-deploys to production.
 
@@ -248,7 +254,7 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 | Icon fetch / picker / metadata | `components/utils/iconService.ts`, `components/WebsiteEditModal.tsx`, `public/icon-metadata.json` |
 | chrome.storage.local access | `components/utils/StorageLocalManager.ts` |
 | Export/import config | `components/services/ConfigurationService.ts` (`exportConfig`, `importConfig`) |
-| Release packaging | `scripts/prepare_release.sh`, `scripts/check_virustotal.sh`, `.gitea/workflows/release.yaml` |
+| Build/release/PR pipelines | `scripts/prepare_release.sh`, `scripts/capture_screenshots.mjs`, `scripts/check_virustotal.sh`, `.gitea/workflows/pull-request.yaml`, `.gitea/workflows/release.yaml` |
 | Docker build | `Dockerfile` |
 
 ---
