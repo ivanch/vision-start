@@ -18,6 +18,11 @@ declare global {
 
 let isChromeStorageLocalAvailable: boolean | null = null;
 
+const ICON_CACHE_KEY_PREFIX = 'vision-start:icon:';
+
+const getIconCacheKey = (sourceUrl: string): string =>
+  `${ICON_CACHE_KEY_PREFIX}${encodeURIComponent(sourceUrl)}`;
+
 
 /**
  * Checks if chrome.storage.local is available and caches the result.
@@ -30,6 +35,56 @@ export function checkChromeStorageLocalAvailable(): boolean {
     typeof window.chrome.storage !== 'undefined' &&
     typeof window.chrome.storage.local !== 'undefined';
   return isChromeStorageLocalAvailable;
+}
+
+export async function getCachedIconFromChromeStorageLocal(sourceUrl: string): Promise<string | null> {
+  if (!checkChromeStorageLocalAvailable()) return null;
+
+  return new Promise<string | null>((resolve) => {
+    if (!window.chrome?.storage?.local) {
+      resolve(null);
+      return;
+    }
+
+    const key = getIconCacheKey(sourceUrl);
+    window.chrome.storage.local.get([key], function (result: { [key: string]: string }) {
+      if (window.chrome?.runtime?.lastError) {
+        resolve(null);
+        return;
+      }
+      resolve(result[key] || null);
+    });
+  });
+}
+
+export async function saveCachedIconToChromeStorageLocal(sourceUrl: string, dataUrl: string): Promise<boolean> {
+  if (!checkChromeStorageLocalAvailable()) return false;
+
+  return new Promise<boolean>((resolve) => {
+    if (!window.chrome?.storage?.local) {
+      resolve(false);
+      return;
+    }
+
+    window.chrome.storage.local.set({ [getIconCacheKey(sourceUrl)]: dataUrl }, function () {
+      resolve(!window.chrome?.runtime?.lastError);
+    });
+  });
+}
+
+export async function removeCachedIconFromChromeStorageLocal(sourceUrl: string): Promise<boolean> {
+  if (!checkChromeStorageLocalAvailable()) return false;
+
+  return new Promise<boolean>((resolve) => {
+    if (!window.chrome?.storage?.local) {
+      resolve(false);
+      return;
+    }
+
+    window.chrome.storage.local.remove(getIconCacheKey(sourceUrl), function () {
+      resolve(!window.chrome?.runtime?.lastError);
+    });
+  });
 }
 
 /**
