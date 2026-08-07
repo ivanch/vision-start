@@ -1,5 +1,6 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { Website } from '../types';
+import { cacheWebsiteIcon, getCachedWebsiteIcon, removeCachedWebsiteIcon } from './utils/iconService';
 
 interface WebsiteTileProps {
   website: Website;
@@ -52,6 +53,46 @@ const getIconLoadingPixelSize = (size: string | undefined): number => {
 const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, onMove, tileSize }) => {
 
   const [isLoading, setIsLoading] = useState(false);
+  const [iconSource, setIconSource] = useState<string | null>(null);
+  const [usingCachedIcon, setUsingCachedIcon] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setIconSource(null);
+    setUsingCachedIcon(false);
+
+    const loadIcon = async () => {
+      const cachedIcon = await getCachedWebsiteIcon(website.icon);
+      if (cancelled) return;
+
+      if (cachedIcon) {
+        setIconSource(cachedIcon);
+        setUsingCachedIcon(cachedIcon !== website.icon);
+        return;
+      }
+
+      setIconSource(website.icon);
+      const newlyCachedIcon = await cacheWebsiteIcon(website.icon);
+      if (!cancelled && newlyCachedIcon) {
+        setIconSource(newlyCachedIcon);
+        setUsingCachedIcon(newlyCachedIcon !== website.icon);
+      }
+    };
+
+    void loadIcon();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [website.icon]);
+
+  const handleIconError = () => {
+    if (!usingCachedIcon) return;
+    setIconSource(website.icon);
+    setUsingCachedIcon(false);
+    void removeCachedWebsiteIcon(website.icon);
+  };
 
   const handleClick = (e: React.MouseEvent) => {
     if (isEditing) {
@@ -84,7 +125,14 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
         )}
         <div className={`relative z-10 flex items-center transition-all duration-200 ease-ios ${isLoading ? 'translate-y-5 gap-2' : 'flex-col gap-3'}`}>
           <div className={`transition-all duration-200 ease-ios drop-shadow-[0_10px_20px_rgba(0,0,0,0.28)] ${isLoading ? iconSizeLoadingClass : iconSizeClass}`}>
-            <img src={website.icon} alt={`${website.name} icon`} className="object-contain w-full h-full" />
+            {iconSource && (
+              <img
+                src={iconSource}
+                alt={`${website.name} icon`}
+                className="object-contain w-full h-full"
+                onError={handleIconError}
+              />
+            )}
           </div>
           <span className={`max-w-full px-1 text-slate-50 font-semibold text-base text-center leading-tight transition-all duration-200 ease-ios [text-shadow:0_2px_12px_rgba(2,6,23,0.44)] ${isLoading ? 'text-sm' : ''}`}>
             {website.name}

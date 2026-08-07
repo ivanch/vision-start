@@ -1,6 +1,6 @@
 ---
 project_name: Vision Start
-date: 2026-07-08
+date: 2026-08-07
 type: general_overview
 ---
 
@@ -57,13 +57,14 @@ The startpage is composed of widgets and a configuration panel:
 - **Server Status Widget** — Bottom-center glass pill that periodically "pings" configured server addresses and shows online/offline indicators. Ping uses an image-load trick (`components/utils/jsping.js`) with a 5s timeout, at a configurable frequency.
 - **Wallpaper background** — Fullscreen background image with adjustable blur, brightness, and opacity, rendered behind a soft readability layer for the liquid-glass UI. Supports rotating through multiple wallpapers at an hourly cadence selected by slider (`1h`–`48h`).
   - Built-in wallpapers: Abstract, Abstract Red, Beach, Dark, Mountain, Waves (`components/utils/baseWallpapers.ts`).
-  - User wallpapers: upload from a file (≤4MB, ≤4.5MB base64) or add by URL; stored in `chrome.storage.local` when available, falling back to storing the URL directly on CORS failure.
-- **Icon library & auto-fetch** — Website icons can be picked from the [Dashboard Icons](https://dashboardicons.com/) library (metadata pre-downloaded to `public/icon-metadata.json`) or auto-fetched from the target site's `apple-touch-icon`/`icon` link tags, with a fallback to Google's S2 favicon service.
+  - User wallpapers: upload from a file (≤4MB, ≤4.5MB base64) or add by URL. Remote URLs remain lightweight entries in the `userWallpapers` index; uploaded image data is stored in `chrome.storage.local` when available.
+- **Icon library, auto-fetch & cache** — Website icons can be picked from the [Dashboard Icons](https://dashboardicons.com/) library (metadata pre-downloaded to `public/icon-metadata.json`) or auto-fetched from the target site's `apple-touch-icon`/`icon` link tags, with a fallback to Google's S2 favicon service. Tiles opportunistically cache CORS-readable icon responses as data URLs in `chrome.storage.local` and retain the original URL when caching is unavailable.
 - **Configuration panel** — Slide-in right-side modal with four tabs: General, Theme, Clock, Server Widget. Includes **Export** (downloads a JSON bundle of selected `localStorage` keys) and **Import** (restores from JSON and reloads the page).
 - **Edit mode** — Toggle via the top-left pencil button; reveals per-tile glass action toolbars, per-category edit buttons, and ghost glass "add" tiles.
 - **Liquid glass design language** — Soft translucent surfaces, restrained edge highlights, moderate backdrop blur, soft shadows, cyan focus states, and iOS-like easing tokens (`ease-ios`, `ease-spring`, `ease-liquid`) defined in `index.css`.
 
 Performance notes:
+- Website tile icons check a deterministic `vision-start:icon:<encoded-source-url>` entry in `chrome.storage.local` before loading the external URL. Cache population uses ordinary CORS-enabled `fetch`, deduplicates in-flight requests, stores only `image/*` responses up to 256KiB, and never intercepts or proxies outside requests.
 - Modals (`ConfigurationModal`, `WebsiteEditModal`, `CategoryEditModal`) are code-split via `React.lazy` + `Suspense` and only loaded when opened. `ConfigurationModal` is the heaviest chunk (it pulls in `@hello-pangea/dnd` via `ServerWidgetTab`); the rest of `@hello-pangea/dnd` is isolated from the initial load.
 - `WebsiteTile` and `CategoryGroup` are wrapped in `React.memo`; `App.tsx` handlers are `useCallback`-stabilized and pure alignment helpers are hoisted to module scope, so opening a modal / toggling edit no longer re-renders every tile.
 - `Clock` updates on the minute boundary (one `setTimeout` → `setInterval(60_000)`) instead of every second.
@@ -118,9 +119,9 @@ vision-start/
 │   │
 │   └── utils/
 │       ├── baseWallpapers.ts        # Built-in wallpaper catalog (imgur/wallpapershome URLs)
-│       ├── iconService.ts           # getWebsiteIcon: fetch HTML, parse apple-touch-icon/icon, fallback to Google favicons
+│       ├── iconService.ts           # icon discovery plus CORS-safe website icon cache lookup/population
 │       ├── jsping.js                # Image-load based "ping" with 5s timeout (used by ServerWidget)
-│       └── StorageLocalManager.ts   # chrome.storage.local wrappers + availability check; wallpaper fetch/base64/URL storage
+│       └── StorageLocalManager.ts   # chrome.storage.local wrappers + availability check; wallpaper and icon cache storage
 │
 ├── public/
 │   ├── favicon.ico
@@ -155,6 +156,8 @@ vision-start/
 
 ## 5. Data Model & State
 
+The icon service also resolves website icon URLs through the persistent CORS-safe cache used by `WebsiteTile`; this cache is separate from the `Website` data model.
+
 The shape of all persisted data lives in `types.ts`:
 
 - **`Website`** — `id`, `name`, `url`, `icon`, `categoryId`
@@ -171,11 +174,12 @@ Storage layout (browser-side):
 |---|---|---|
 | `config` | `localStorage` | The full `Config` JSON |
 | `categories` | `localStorage` | `Category[]` JSON |
-| `userWallpapers` | `localStorage` | `Wallpaper[]` index (names) |
+| `userWallpapers` | `localStorage` | `Wallpaper[]` index (names plus URLs for remote wallpapers) |
 | `wallpaperState` | `localStorage` | `{ lastWallpaperChange, currentIndex }` for rotation |
-| `<wallpaperName>` | `chrome.storage.local` (when available) | base64 (or URL on CORS failure) image data |
+| `<wallpaperName>` | `chrome.storage.local` (when available) | Base64 image data for uploaded wallpaper files and legacy URL wallpapers |
+| `vision-start:icon:<encoded-source-url>` | `chrome.storage.local` (when available) | CORS-readable website icon data URL, capped at 256KiB |
 
-Export/import bundles keys: `config`, `categories`, `userWallpapers`, `wallpaperState`.
+Export/import bundles keys: `config`, `categories`, `userWallpapers`, `wallpaperState`. Remote wallpaper URLs are included through `userWallpapers`; uploaded image data and rebuildable icon cache entries are not included.
 
 ---
 
@@ -191,7 +195,8 @@ Export/import bundles keys: `config`, `categories`, `userWallpapers`, `wallpaper
    - One `<CategoryGroup>` per category (renders its `<WebsiteTile>`s and, in edit mode, add/edit/move controls).
    - Optional `<ServerWidget>` if enabled.
    - Conditionally one of: `<WebsiteEditModal>`, `<CategoryEditModal>`, `<ConfigurationModal>`.
-5. Edit / configuration interactions update central `App` state; the existing `useEffect`s persist it.
+5. Each `<WebsiteTile>` checks the icon cache before loading the external URL, then asynchronously populates the cache on a miss.
+6. Edit / configuration interactions update central `App` state; the existing `useEffect`s persist it.
 
 ---
 
@@ -229,9 +234,10 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 
 - **`EditModal.tsx` has been removed.** It was a legacy drag-and-drop editor that imported non-existent `lucide-react` and `./IconPicker`; it was never wired into `App.tsx`. Use `WebsiteEditModal.tsx` / `CategoryEditModal.tsx` instead.
 - **`@hello-pangea/dnd`** is used only in `ServerWidgetTab.tsx` (server reorder), which itself is imported by the lazy-loaded `ConfigurationModal`, so it lives in a separate chunk and is absent from the initial page load. `WebsiteTile` moves tiles within their own category via simple left/right buttons (no cross-category movement), not drag-and-drop.
-- **Chrome storage is optional.** `StorageLocalManager` checks availability once (`checkChromeStorageLocalAvailable`) and caches it. When unavailable (e.g., running as a plain web page), wallpaper upload/delete flows are gated off and `addWallpaperToChromeStorageLocal` throws.
+- **Chrome storage is optional.** `StorageLocalManager` checks availability once (`checkChromeStorageLocalAvailable`) and caches it. Remote wallpaper URLs work without it because their URLs live in `userWallpapers`; file upload is gated off when unavailable, and `addWallpaperToChromeStorageLocal` throws if called without it.
 - **Wallpaper rotation** is time-based, evaluated on render/mount rather than via a timer. It reads `wallpaperState` from `localStorage`, advances the index if the frequency window has elapsed, and writes it back; the frequency is clamped to 1–48 hours, while older saved values like `1d`/`2d` still resolve to their hour equivalents. The renderer clamps `currentIndex` to the valid range of the current selection and walks the list forward to find a wallpaper whose data actually resolves (so deleting the currently-displayed wallpaper, or shrinking the selection, never leaves the background blank); if no wallpaper resolves, the background layer is hidden. When the selection becomes empty, `wallpaperState` is reset and the background is hidden. A manual "Next Wallpaper" button in the Theme tab advances `currentIndex` (with wraparound) and bumps a `wallpaperVersion` nonce in `App.tsx` that retriggers the renderer.
 - **Icon picker** in `WebsiteEditModal` loads `/icon-metadata.json` at runtime and expands each icon's `colors` into duplicate-name entries so color variants are searchable.
+- **Website icon cache** is persistent only in `chrome.storage.local`; it is rebuilt from website icon URLs after configuration import. Only CORS-readable `http`/`https` image responses no larger than 256KiB are cached.
 - **`tsconfig.json` does not emit JS** (`noEmit: true`, bundler resolution); Vite handles all transpilation.
 - **`tailwind.config.js` safelists** a set of `w-[Npx]/h-[Npx]` classes because `WebsiteTile` generates tailwind classes dynamically from `tileSize` (`w-[42px]`, etc.).
 - **Project guidance note** in `PROJECT.md`: do not use `npm run dev` for real verification — use `npm run build`.
@@ -253,10 +259,11 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 | Server status logic | `components/ServerWidget.tsx` + `components/utils/jsping.js` |
 | Icon fetch / picker / metadata | `components/utils/iconService.ts`, `components/WebsiteEditModal.tsx`, `public/icon-metadata.json` |
 | chrome.storage.local access | `components/utils/StorageLocalManager.ts` |
+| Website icon cache | `components/utils/iconService.ts`, `components/WebsiteTile.tsx`, `components/utils/StorageLocalManager.ts` |
 | Export/import config | `components/services/ConfigurationService.ts` (`exportConfig`, `importConfig`) |
 | Build/release/PR pipelines | `scripts/prepare_release.sh`, `scripts/capture_screenshots.mjs`, `scripts/check_virustotal.sh`, `.gitea/workflows/pull-request.yaml`, `.gitea/workflows/release.yaml` |
 | Docker build | `Dockerfile` |
 
 ---
 
-_Last updated: 2026-07-10. Generated as a general project overview; not a coding-style guide._
+_Last updated: 2026-08-07. Generated as a general project overview; not a coding-style guide._

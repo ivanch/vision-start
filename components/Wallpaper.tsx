@@ -43,16 +43,14 @@ const getWallpaperUrlByName = async (name: string): Promise<string | undefined> 
         JSON.parse(localStorage.getItem('userWallpapers') || '[]');
       const foundInUser = storedUserWallpapers.find((w: WallpaperType) => w.name === name);
       if (foundInUser) {
-        try {
-          const wallpaperData = await getWallpaperFromChromeStorageLocal(name);
-          if (wallpaperData && wallpaperData.startsWith('http')) {
-            resolved = wallpaperData;
-          } else {
-            resolved = wallpaperData || undefined;
+        resolved = foundInUser.url || foundInUser.base64;
+        if (!resolved) {
+          try {
+            resolved = (await getWallpaperFromChromeStorageLocal(name)) || undefined;
+          } catch (error) {
+            console.error('Error getting wallpaper from chrome storage', error);
+            resolved = undefined;
           }
-        } catch (error) {
-          console.error('Error getting wallpaper from chrome storage', error);
-          resolved = undefined;
         }
       }
     } catch (error) {
