@@ -63,7 +63,7 @@ npm run dev
 * [x] Multiple Wallpapers
 * [x] Remake icons
 * [/] Increase offline compatibility (might not be possible)
-  - [x] Use chrome.storage.local for user wallpapers -- this one is
+  - [x] Use chrome.storage.local for uploaded wallpaper files; remote wallpapers stay as URLs
   - [ ] Use chrome.storage.local for some logos -- a bit hard
     - Some logos have CORS enabled, we can add `"<all_urls>"` to the manifest.json file and cache them on storage local
 * Dynamic Weather Widget

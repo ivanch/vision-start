@@ -89,83 +89,46 @@ export async function removeCachedIconFromChromeStorageLocal(sourceUrl: string):
 
 /**
  * Adds a new wallpaper to chrome.storage.local.
- * If the URL is fetchable, it will be stored as base64 and the name will be derived from the URL.
- * If the URL is not fetchable (e.g., CORS), it will be stored as a URL and the provided name will be used.
+ * File uploads are stored as base64 while remote wallpapers remain URLs.
  * @param name Wallpaper name (string), used as a fallback.
  * @param url Wallpaper image URL (string) or base64 data URL.
  * @returns Promise<string> The name under which the wallpaper was stored.
- * @throws Error if chrome.storage.local is unavailable or if a name is not provided for a non-fetchable URL.
+ * @throws Error if chrome.storage.local is unavailable or the wallpaper data is invalid.
  */
 export async function addWallpaperToChromeStorageLocal(name: string, url: string): Promise<string> {
   if (!checkChromeStorageLocalAvailable()) {
     throw new Error('chrome.storage.local is not available');
   }
 
+  let finalName = name.trim();
   if (url.startsWith('data:')) {
-    // This is a base64 encoded image from a file upload.
-    // The name is the file name.
-    return new Promise<void>((resolve, reject) => {
-      if (window.chrome?.storage?.local) {
-        window.chrome.storage.local.set({ [name]: url }, function () {
-          if (window.chrome?.runtime?.lastError) {
-            reject(new Error(window.chrome.runtime.lastError.message));
-          } else {
-            resolve();
-          }
-        });
-      } else {
-        reject(new Error('chrome.storage.local is not available'));
-      }
-    }).then(() => name);
-  }
-
-  // This is a URL. Let's try to fetch it.
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Failed to fetch image');
-    const imageBlob = await response.blob();
-    const reader = new FileReader();
-    const base64 = await new Promise<string>((resolve, reject) => {
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(imageBlob);
-    });
-
-    // If successful, use the filename from URL as the name.
-    const finalName = url.substring(url.lastIndexOf('/') + 1).replace(/[?#].*$/, '') || name;
-    return new Promise<void>((resolve, reject) => {
-      if (window.chrome?.storage?.local) {
-        window.chrome.storage.local.set({ [finalName]: base64 }, function () {
-          if (window.chrome?.runtime?.lastError) {
-            reject(new Error(window.chrome.runtime.lastError.message));
-          } else {
-            resolve();
-          }
-        });
-      } else {
-        reject(new Error('chrome.storage.local is not available'));
-      }
-    }).then(() => finalName);
-  } catch (error) {
-    // If fetch fails (e.g., CORS), store the URL directly with the user-provided name.
-    console.warn('Could not fetch wallpaper, storing URL instead. Error:', error);
-    if (!name) {
-      throw new Error("A name for the wallpaper is required when the URL can't be accessed.");
+    if (!finalName) throw new Error('A name is required for an uploaded wallpaper.');
+  } else {
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new Error('Please enter a valid wallpaper URL.');
     }
-    return new Promise<void>((resolve, reject) => {
-      if (window.chrome?.storage?.local) {
-        window.chrome.storage.local.set({ [name]: url }, function () {
-          if (window.chrome?.runtime?.lastError) {
-            reject(new Error(window.chrome.runtime.lastError.message));
-          } else {
-            resolve();
-          }
-        });
-      } else {
-        reject(new Error('chrome.storage.local is not available'));
-      }
-    }).then(() => name);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      throw new Error('Wallpaper URLs must use HTTP or HTTPS.');
+    }
+    finalName = finalName || parsedUrl.pathname.split('/').filter(Boolean).pop() || parsedUrl.hostname;
   }
+
+  return new Promise<void>((resolve, reject) => {
+    if (!window.chrome?.storage?.local) {
+      reject(new Error('chrome.storage.local is not available'));
+      return;
+    }
+    window.chrome.storage.local.set({ [finalName]: url }, function () {
+      if (window.chrome?.runtime?.lastError) {
+        reject(new Error(window.chrome.runtime.lastError.message));
+      } else {
+        resolve();
+      }
+    });
+  }).then(() => finalName);
 }
 
 /**

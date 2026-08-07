@@ -62,7 +62,11 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
       setNewWallpaperName('');
       setNewWallpaperUrl('');
     } catch (error) {
-      alert('Error adding wallpaper. Please check the URL and try again.');
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Error adding wallpaper. Please check the URL and try again.',
+      );
       console.error(error);
     }
   };
@@ -160,105 +164,103 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
           <span className="w-12 text-right text-sm text-slate-200">{config.wallpaperOpacity}%</span>
         </div>
       </div>
-      {chromeStorageAvailable && (
-        <>
-          <div>
-            <h3 className="text-slate-300 text-sm font-semibold mb-2">User Wallpapers</h3>
-            <div className="flex flex-col gap-2">
-              {userWallpapers.map((wallpaper) => (
-                <div
-                  key={wallpaper.name}
-                  className="liquid-surface flex items-center justify-between rounded-xl p-2.5"
+      <div>
+        <h3 className="text-slate-300 text-sm font-semibold mb-2">User Wallpapers</h3>
+        <div className="flex flex-col gap-2">
+          {userWallpapers.map((wallpaper) => (
+            <div
+              key={wallpaper.name}
+              className="liquid-surface flex items-center justify-between rounded-xl p-2.5"
+            >
+              <span className="truncate">{wallpaper.name}</span>
+              <button
+                onClick={() => onDeleteWallpaper(wallpaper)}
+                className="liquid-edit-action liquid-focus text-red-300 hover:text-red-100"
+                aria-label={`Delete ${wallpaper.name}`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  className="bi bi-trash"
+                  viewBox="0 0 16 16"
                 >
-                  <span className="truncate">{wallpaper.name}</span>
-                  <button
-                    onClick={() => onDeleteWallpaper(wallpaper)}
-                    className="liquid-edit-action liquid-focus text-red-300 hover:text-red-100"
-                    aria-label={`Delete ${wallpaper.name}`}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      fill="currentColor"
-                      className="bi bi-trash"
-                      viewBox="0 0 16 16"
-                    >
-                      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                      <path
-                        fillRule="evenodd"
-                        d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <h3 className="text-slate-300 text-sm font-semibold mb-2">Add New Wallpaper</h3>
-            <div className="flex flex-col gap-2">
-              <input
-                type="text"
-                placeholder="Wallpaper Name (optional for URLs)"
-                value={newWallpaperName}
-                onChange={(e) => setNewWallpaperName(e.target.value)}
-                className="liquid-input p-2.5"
-              />
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  type="text"
-                  placeholder="Image URL"
-                  value={newWallpaperUrl}
-                  onChange={(e) => setNewWallpaperUrl(e.target.value)}
-                  className="liquid-input p-2.5"
-                />
-                <button
-                  onClick={handleAddWallpaper}
-                  className="liquid-button liquid-button-primary liquid-focus py-2.5 px-4"
-                >
-                  Add
-                </button>
-              </div>
-              <div className="flex items-center justify-center w-full">
-                <label
-                  htmlFor="file-upload"
-                  className="liquid-surface liquid-ghost-tile flex flex-col items-center justify-center w-full h-32 cursor-pointer transition-all duration-200 ease-ios"
-                >
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <svg
-                      className="w-8 h-8 mb-4 text-gray-400"
-                      aria-hidden="true"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 20 16"
-                    >
-                      <path
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
-                      />
-                    </svg>
-                    <p className="mb-2 text-sm text-gray-400">
-                      <span className="font-semibold">Click to upload</span> or drag and drop
-                    </p>
-                    <p className="text-xs text-gray-400">PNG, JPG, WEBP, etc.</p>
-                  </div>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                    ref={fileInputRef}
+                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                  <path
+                    fillRule="evenodd"
+                    d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
                   />
-                </label>
-              </div>
+                </svg>
+              </button>
             </div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <h3 className="text-slate-300 text-sm font-semibold mb-2">Add New Wallpaper</h3>
+        <div className="flex flex-col gap-2">
+          <input
+            type="text"
+            placeholder="Wallpaper Name (optional for URLs)"
+            value={newWallpaperName}
+            onChange={(e) => setNewWallpaperName(e.target.value)}
+            className="liquid-input p-2.5"
+          />
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="text"
+              placeholder="Image URL"
+              value={newWallpaperUrl}
+              onChange={(e) => setNewWallpaperUrl(e.target.value)}
+              className="liquid-input p-2.5"
+            />
+            <button
+              onClick={handleAddWallpaper}
+              className="liquid-button liquid-button-primary liquid-focus py-2.5 px-4"
+            >
+              Add
+            </button>
           </div>
-        </>
-      )}
+          {chromeStorageAvailable && (
+            <div className="flex items-center justify-center w-full">
+              <label
+                htmlFor="file-upload"
+                className="liquid-surface liquid-ghost-tile flex flex-col items-center justify-center w-full h-32 cursor-pointer transition-all duration-200 ease-ios"
+              >
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <svg
+                    className="w-8 h-8 mb-4 text-gray-400"
+                    aria-hidden="true"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 20 16"
+                  >
+                    <path
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
+                    />
+                  </svg>
+                  <p className="mb-2 text-sm text-gray-400">
+                    <span className="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-gray-400">PNG, JPG, WEBP, etc.</p>
+                </div>
+                <input
+                  id="file-upload"
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  ref={fileInputRef}
+                />
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
       <div className="flex justify-center pt-2">
         <button
           onClick={onNextWallpaper}

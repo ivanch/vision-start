@@ -1,6 +1,7 @@
 import { Config, Wallpaper } from '../../types';
 import {
   addWallpaperToChromeStorageLocal,
+  checkChromeStorageLocalAvailable,
   removeWallpaperFromChromeStorageLocal,
 } from '../utils/StorageLocalManager';
 
@@ -42,6 +43,16 @@ const safeParse = (value: string | null): unknown => {
 
 const toStorageString = (value: unknown): string =>
   typeof value === 'string' ? value : JSON.stringify(value);
+
+const getWallpaperNameFromUrl = (url: URL): string => {
+  const pathName = url.pathname.split('/').filter(Boolean).pop();
+  if (!pathName) return url.hostname;
+  try {
+    return decodeURIComponent(pathName);
+  } catch {
+    return pathName;
+  }
+};
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -100,8 +111,18 @@ export const ConfigurationService = {
   },
 
   async addWallpaper(name: string, url: string): Promise<Wallpaper> {
-    const finalName = await addWallpaperToChromeStorageLocal(name, url);
-    return { name: finalName };
+    const trimmedUrl = url.trim();
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(trimmedUrl);
+    } catch {
+      throw new Error('Please enter a valid wallpaper URL.');
+    }
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      throw new Error('Wallpaper URLs must use HTTP or HTTPS.');
+    }
+    const finalName = name.trim() || getWallpaperNameFromUrl(parsedUrl) || 'Wallpaper';
+    return { name: finalName, url: parsedUrl.href };
   },
 
   async addWallpaperFile(file: File): Promise<Wallpaper> {
@@ -130,6 +151,7 @@ export const ConfigurationService = {
   },
 
   async deleteWallpaper(wallpaper: Wallpaper): Promise<void> {
+    if (wallpaper.url || wallpaper.base64 || !checkChromeStorageLocalAvailable()) return;
     await removeWallpaperFromChromeStorageLocal(wallpaper.name);
   },
 
