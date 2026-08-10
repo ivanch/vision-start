@@ -27,6 +27,12 @@ const parseFrequencyToMs = (freq: string): number => {
   return Math.min(MAX_WALLPAPER_FREQUENCY_MS, Math.max(MIN_WALLPAPER_FREQUENCY_MS, frequencyMs));
 };
 
+const getRandomWallpaperIndex = (wallpaperCount: number, currentIndex: number): number => {
+  if (wallpaperCount <= 1) return 0;
+  const offset = Math.floor(Math.random() * (wallpaperCount - 1)) + 1;
+  return (currentIndex + offset) % wallpaperCount;
+};
+
 const wallpaperUrlCache = new Map<string, string | undefined>();
 
 const getWallpaperUrlByName = async (name: string): Promise<string | undefined> => {
@@ -91,7 +97,7 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
 
       const shouldRotate = now - lastChange >= freqMs;
       let resolvedIndex = shouldRotate
-        ? (storedIndex + 1) % wallpaperNames.length
+        ? getRandomWallpaperIndex(wallpaperNames.length, storedIndex)
         : storedIndex;
 
       const tried = new Set<number>();

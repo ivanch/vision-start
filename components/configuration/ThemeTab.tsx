@@ -11,7 +11,7 @@ interface ThemeTabProps {
   onAddWallpaper: (name: string, url: string) => Promise<void>;
   onAddWallpaperFile: (file: File) => Promise<void>;
   onDeleteWallpaper: (wallpaper: Wallpaper) => Promise<void>;
-  onNextWallpaper: () => void;
+  onRandomWallpaper: () => void;
 }
 
 type RangeStyle = React.CSSProperties & { '--range-progress': string };
@@ -48,7 +48,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
   onAddWallpaper,
   onAddWallpaperFile,
   onDeleteWallpaper,
-  onNextWallpaper,
+  onRandomWallpaper,
 }) => {
   const [newWallpaperName, setNewWallpaperName] = useState('');
   const [newWallpaperUrl, setNewWallpaperUrl] = useState('');
@@ -263,7 +263,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
       </div>
       <div className="flex justify-center pt-2">
         <button
-          onClick={onNextWallpaper}
+          onClick={onRandomWallpaper}
           disabled={config.currentWallpapers.length === 0}
           className="liquid-surface liquid-control liquid-focus disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-4 rounded-2xl"
         >
@@ -276,7 +276,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
           >
             <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zM4.5 7.5a.5.5 0 0 1 .5-.5h5.379L8.646 5.354a.5.5 0 1 1 .708-.708l2.5 2.5a.5.5 0 0 1 0 .708l-2.5 2.5a.5.5 0 0 1-.708-.708L10.379 8H5a.5.5 0 0 1-.5-.5z" />
           </svg>
-          Next Wallpaper
+          Random Wallpaper
         </button>
       </div>
     </div>

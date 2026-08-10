@@ -13,7 +13,7 @@ interface ConfigurationModalProps {
   onSave: (config: Config) => void;
   currentConfig: Config;
   onWallpaperChange: (newConfig: Partial<Config>) => void;
-  onNextWallpaper: () => void;
+  onRandomWallpaper: () => void;
 }
 
 const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
@@ -21,7 +21,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
   onSave,
   currentConfig,
   onWallpaperChange,
-  onNextWallpaper,
+  onRandomWallpaper,
 }) => {
   const [config, setConfig] = useState<Config>(currentConfig);
   const [activeTab, setActiveTab] = useState('general');
@@ -177,7 +177,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
               onAddWallpaper={handleAddWallpaper}
               onAddWallpaperFile={handleAddWallpaperFile}
               onDeleteWallpaper={handleDeleteWallpaper}
-              onNextWallpaper={onNextWallpaper}
+              onRandomWallpaper={onRandomWallpaper}
             />
           )}
           {activeTab === 'clock' && (

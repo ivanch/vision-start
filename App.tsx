@@ -39,6 +39,12 @@ const getHorizontalAlignmentClass = (alignment: string) => {
   }
 };
 
+const getRandomWallpaperIndex = (wallpaperCount: number, currentIndex: number): number => {
+  if (wallpaperCount <= 1) return 0;
+  const offset = Math.floor(Math.random() * (wallpaperCount - 1)) + 1;
+  return (currentIndex + offset) % wallpaperCount;
+};
+
 const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
@@ -81,23 +87,23 @@ const App: React.FC = () => {
     setConfig(prev => ({ ...prev, ...newConfig }));
   }, []);
 
-  const handleNextWallpaper = useCallback(() => {
+  const handleRandomWallpaper = useCallback(() => {
     const names = config.currentWallpapers;
     if (names.length === 0) return;
     try {
       const state = JSON.parse(localStorage.getItem('wallpaperState') || '{}');
       const current = typeof state.currentIndex === 'number' ? state.currentIndex : 0;
       const safeCurrent = current < 0 || current >= names.length ? 0 : current;
-      const nextIndex = (safeCurrent + 1) % names.length;
+      const randomIndex = getRandomWallpaperIndex(names.length, safeCurrent);
       localStorage.setItem(
         'wallpaperState',
         JSON.stringify({
           lastWallpaperChange: new Date().toISOString(),
-          currentIndex: nextIndex,
+          currentIndex: randomIndex,
         }),
       );
     } catch (error) {
-      console.error('Error advancing wallpaper state', error);
+      console.error('Error randomizing wallpaper state', error);
     }
     setWallpaperVersion(v => v + 1);
   }, [config.currentWallpapers]);
@@ -282,7 +288,7 @@ const App: React.FC = () => {
             onClose={() => setIsConfigModalOpen(false)}
             onSave={handleSaveConfig}
             onWallpaperChange={handleWallpaperChange}
-            onNextWallpaper={handleNextWallpaper}
+            onRandomWallpaper={handleRandomWallpaper}
           />
         </Suspense>
       )}
