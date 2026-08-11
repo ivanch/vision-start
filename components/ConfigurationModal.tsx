@@ -28,7 +28,6 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
   const [userWallpapers, setUserWallpapers] = useState<Wallpaper[]>([]);
   const [chromeStorageAvailable, setChromeStorageAvailable] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const isSaving = useRef(false);
 
@@ -64,8 +63,8 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
     setConfig((prev) => ({ ...prev, ...updates }));
   };
 
-  const handleAddWallpaper = async (name: string, url: string) => {
-    const newWallpaper = await ConfigurationService.addWallpaper(name, url);
+  const handleAddWallpaperEntry = async (promise: Promise<Wallpaper>) => {
+    const newWallpaper = await promise;
     const updated = [...userWallpapers, newWallpaper];
     setUserWallpapers(updated);
     ConfigurationService.saveUserWallpapers(updated);
@@ -75,16 +74,11 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
     }));
   };
 
-  const handleAddWallpaperFile = async (file: File) => {
-    const newWallpaper = await ConfigurationService.addWallpaperFile(file);
-    const updated = [...userWallpapers, newWallpaper];
-    setUserWallpapers(updated);
-    ConfigurationService.saveUserWallpapers(updated);
-    setConfig((prev) => ({
-      ...prev,
-      currentWallpapers: [...prev.currentWallpapers, newWallpaper.name],
-    }));
-  };
+  const handleAddWallpaper = (name: string, url: string) =>
+    handleAddWallpaperEntry(ConfigurationService.addWallpaper(name, url));
+
+  const handleAddWallpaperFile = (file: File) =>
+    handleAddWallpaperEntry(ConfigurationService.addWallpaperFile(file));
 
   const handleDeleteWallpaper = async (wallpaper: Wallpaper) => {
     try {
@@ -140,7 +134,6 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
       />
 
       <div
-        ref={menuRef}
         className={`liquid-drawer fixed top-0 right-0 h-full w-full max-w-xl text-white flex flex-col transition-transform duration-300 ease-spring transform ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
         }`}

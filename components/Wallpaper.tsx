@@ -1,8 +1,8 @@
-
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { baseWallpapers } from './utils/baseWallpapers';
 import { Wallpaper as WallpaperType } from '../types';
 import { getWallpaperFromChromeStorageLocal } from './utils/StorageLocalManager';
+import { getRandomWallpaperIndex, getWallpaperFrequencyMs } from './utils/wallpaperUtils';
 
 interface WallpaperProps {
   wallpaperNames: string[];
@@ -13,27 +13,17 @@ interface WallpaperProps {
   wallpaperVersion: number;
 }
 
-const MIN_WALLPAPER_FREQUENCY_MS = 60 * 60 * 1000;
-const MAX_WALLPAPER_FREQUENCY_MS = 48 * 60 * 60 * 1000;
-const DEFAULT_WALLPAPER_FREQUENCY_MS = 24 * 60 * 60 * 1000;
-
-const parseFrequencyToMs = (freq: string): number => {
-  if (!freq) return DEFAULT_WALLPAPER_FREQUENCY_MS;
-  const match = freq.match(/^(\d+)(h|d)$/);
-  if (!match) return DEFAULT_WALLPAPER_FREQUENCY_MS;
-  const value = parseInt(match[1], 10);
-  const unit = match[2];
-  const frequencyMs = unit === 'd' ? value * 24 * 60 * 60 * 1000 : value * 60 * 60 * 1000;
-  return Math.min(MAX_WALLPAPER_FREQUENCY_MS, Math.max(MIN_WALLPAPER_FREQUENCY_MS, frequencyMs));
-};
-
-const getRandomWallpaperIndex = (wallpaperCount: number, currentIndex: number): number => {
-  if (wallpaperCount <= 1) return 0;
-  const offset = Math.floor(Math.random() * (wallpaperCount - 1)) + 1;
-  return (currentIndex + offset) % wallpaperCount;
-};
-
+const MAX_WALLPAPER_URL_CACHE = 3;
 const wallpaperUrlCache = new Map<string, string | undefined>();
+
+const rememberWallpaperUrl = (name: string, resolved: string | undefined): void => {
+  wallpaperUrlCache.set(name, resolved);
+  while (wallpaperUrlCache.size > MAX_WALLPAPER_URL_CACHE) {
+    const oldest = wallpaperUrlCache.keys().next().value;
+    if (oldest === undefined) break;
+    wallpaperUrlCache.delete(oldest);
+  }
+};
 
 const getWallpaperUrlByName = async (name: string): Promise<string | undefined> => {
   if (!name) return undefined;
@@ -65,18 +55,19 @@ const getWallpaperUrlByName = async (name: string): Promise<string | undefined> 
     }
   }
 
-  wallpaperUrlCache.set(name, resolved);
+  rememberWallpaperUrl(name, resolved);
   return resolved;
 };
 
 const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness, opacity, wallpaperFrequency, wallpaperVersion }) => {
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
-  const resolvedRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     const updateWallpaper = async () => {
       if (wallpaperNames.length === 0) {
-        setImageUrl(undefined);
+        if (!cancelled) setImageUrl(undefined);
         localStorage.setItem(
           'wallpaperState',
           JSON.stringify({ lastWallpaperChange: new Date().toISOString(), currentIndex: 0 }),
@@ -89,7 +80,7 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
         ? new Date(wallpaperState.lastWallpaperChange).getTime()
         : 0;
       const now = Date.now();
-      const freqMs = parseFrequencyToMs(wallpaperFrequency);
+      const freqMs = getWallpaperFrequencyMs(wallpaperFrequency);
 
       let storedIndex =
         typeof wallpaperState.currentIndex === 'number' ? wallpaperState.currentIndex : 0;
@@ -107,12 +98,15 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
         if (tried.has(resolvedIndex)) break;
         tried.add(resolvedIndex);
         const url = await getWallpaperUrlByName(wallpaperNames[resolvedIndex]);
+        if (cancelled) return;
         if (url) {
           resolvedUrl = url;
           break;
         }
         resolvedIndex = (resolvedIndex + 1) % wallpaperNames.length;
       }
+
+      if (cancelled) return;
 
       const nextLastChange = shouldRotate
         ? new Date().toISOString()
@@ -126,10 +120,13 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
         }),
       );
 
-      resolvedRef.current = true;
       setImageUrl(resolvedUrl);
     };
     updateWallpaper();
+
+    return () => {
+      cancelled = true;
+    };
   }, [wallpaperNames, wallpaperFrequency, wallpaperVersion]);
 
   if (!imageUrl) return null;

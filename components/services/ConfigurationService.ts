@@ -4,6 +4,7 @@ import {
   checkChromeStorageLocalAvailable,
   removeWallpaperFromChromeStorageLocal,
 } from '../utils/StorageLocalManager';
+import { getFileNameFromUrl } from '../utils/urlUtils';
 
 const REQUIRED_LOCAL_STORAGE_KEYS = ['config', 'categories', 'userWallpapers', 'wallpaperState'] as const;
 type RequiredLocalStorageKey = typeof REQUIRED_LOCAL_STORAGE_KEYS[number];
@@ -43,16 +44,6 @@ const safeParse = (value: string | null): unknown => {
 
 const toStorageString = (value: unknown): string =>
   typeof value === 'string' ? value : JSON.stringify(value);
-
-const getWallpaperNameFromUrl = (url: URL): string => {
-  const pathName = url.pathname.split('/').filter(Boolean).pop();
-  if (!pathName) return url.hostname;
-  try {
-    return decodeURIComponent(pathName);
-  } catch {
-    return pathName;
-  }
-};
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -121,7 +112,7 @@ export const ConfigurationService = {
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       throw new Error('Wallpaper URLs must use HTTP or HTTPS.');
     }
-    const finalName = name.trim() || getWallpaperNameFromUrl(parsedUrl) || 'Wallpaper';
+    const finalName = name.trim() || getFileNameFromUrl(parsedUrl) || 'Wallpaper';
     return { name: finalName, url: parsedUrl.href };
   },
 

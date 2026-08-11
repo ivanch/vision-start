@@ -1,4 +1,6 @@
 // TypeScript interface for window.chrome
+import { getFileNameFromUrl } from './urlUtils';
+
 declare global {
   interface Window {
     chrome?: {
@@ -23,7 +25,6 @@ const ICON_CACHE_KEY_PREFIX = 'vision-start:icon:';
 const getIconCacheKey = (sourceUrl: string): string =>
   `${ICON_CACHE_KEY_PREFIX}${encodeURIComponent(sourceUrl)}`;
 
-
 /**
  * Checks if chrome.storage.local is available and caches the result.
  */
@@ -37,54 +38,60 @@ export function checkChromeStorageLocalAvailable(): boolean {
   return isChromeStorageLocalAvailable;
 }
 
-export async function getCachedIconFromChromeStorageLocal(sourceUrl: string): Promise<string | null> {
-  if (!checkChromeStorageLocalAvailable()) return null;
+type StorageResult = { [key: string]: string };
 
-  return new Promise<string | null>((resolve) => {
+const chromeLocalCall = <T>(
+  operation: (callback: (result: T) => void) => void,
+): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
     if (!window.chrome?.storage?.local) {
-      resolve(null);
+      reject(new Error('chrome.storage.local is not available'));
       return;
     }
-
-    const key = getIconCacheKey(sourceUrl);
-    window.chrome.storage.local.get([key], function (result: { [key: string]: string }) {
+    operation((result) => {
       if (window.chrome?.runtime?.lastError) {
-        resolve(null);
-        return;
+        reject(new Error(window.chrome.runtime.lastError.message));
+      } else {
+        resolve(result);
       }
-      resolve(result[key] || null);
     });
   });
+
+export async function getCachedIconFromChromeStorageLocal(sourceUrl: string): Promise<string | null> {
+  if (!checkChromeStorageLocalAvailable()) return null;
+  try {
+    const key = getIconCacheKey(sourceUrl);
+    const result = await chromeLocalCall<StorageResult>((cb) =>
+      window.chrome?.storage?.local?.get([key], cb),
+    );
+    return result[key] || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function saveCachedIconToChromeStorageLocal(sourceUrl: string, dataUrl: string): Promise<boolean> {
   if (!checkChromeStorageLocalAvailable()) return false;
-
-  return new Promise<boolean>((resolve) => {
-    if (!window.chrome?.storage?.local) {
-      resolve(false);
-      return;
-    }
-
-    window.chrome.storage.local.set({ [getIconCacheKey(sourceUrl)]: dataUrl }, function () {
-      resolve(!window.chrome?.runtime?.lastError);
-    });
-  });
+  try {
+    await chromeLocalCall<void>((cb) =>
+      window.chrome?.storage?.local?.set({ [getIconCacheKey(sourceUrl)]: dataUrl }, cb),
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function removeCachedIconFromChromeStorageLocal(sourceUrl: string): Promise<boolean> {
   if (!checkChromeStorageLocalAvailable()) return false;
-
-  return new Promise<boolean>((resolve) => {
-    if (!window.chrome?.storage?.local) {
-      resolve(false);
-      return;
-    }
-
-    window.chrome.storage.local.remove(getIconCacheKey(sourceUrl), function () {
-      resolve(!window.chrome?.runtime?.lastError);
-    });
-  });
+  try {
+    await chromeLocalCall<void>((cb) =>
+      window.chrome?.storage?.local?.remove(getIconCacheKey(sourceUrl), cb),
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -113,22 +120,13 @@ export async function addWallpaperToChromeStorageLocal(name: string, url: string
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       throw new Error('Wallpaper URLs must use HTTP or HTTPS.');
     }
-    finalName = finalName || parsedUrl.pathname.split('/').filter(Boolean).pop() || parsedUrl.hostname;
+    finalName = finalName || getFileNameFromUrl(parsedUrl);
   }
 
-  return new Promise<void>((resolve, reject) => {
-    if (!window.chrome?.storage?.local) {
-      reject(new Error('chrome.storage.local is not available'));
-      return;
-    }
-    window.chrome.storage.local.set({ [finalName]: url }, function () {
-      if (window.chrome?.runtime?.lastError) {
-        reject(new Error(window.chrome.runtime.lastError.message));
-      } else {
-        resolve();
-      }
-    });
-  }).then(() => finalName);
+  await chromeLocalCall<void>((cb) =>
+    window.chrome?.storage?.local?.set({ [finalName]: url }, cb),
+  );
+  return finalName;
 }
 
 /**
@@ -141,19 +139,10 @@ export async function getWallpaperFromChromeStorageLocal(name: string): Promise<
   if (!checkChromeStorageLocalAvailable()) {
     throw new Error('chrome.storage.local is not available');
   }
-  return new Promise<string | null>((resolve, reject) => {
-    if (window.chrome?.storage?.local) {
-      window.chrome.storage.local.get([name], function (result: { [key: string]: string }) {
-        if (window.chrome?.runtime?.lastError) {
-          reject(new Error(window.chrome.runtime.lastError.message));
-        } else {
-          resolve(result[name] || null);
-        }
-      });
-    } else {
-      reject(new Error('chrome.storage.local is not available'));
-    }
-  });
+  const result = await chromeLocalCall<StorageResult>((cb) =>
+    window.chrome?.storage?.local?.get([name], cb),
+  );
+  return result[name] || null;
 }
 
 /**
@@ -166,17 +155,7 @@ export async function removeWallpaperFromChromeStorageLocal(name: string): Promi
   if (!checkChromeStorageLocalAvailable()) {
     throw new Error('chrome.storage.local is not available');
   }
-  return new Promise<void>((resolve, reject) => {
-    if (window.chrome?.storage?.local) {
-      window.chrome.storage.local.remove(name, function () {
-        if (window.chrome?.runtime?.lastError) {
-          reject(new Error(window.chrome.runtime.lastError.message));
-        } else {
-          resolve();
-        }
-      });
-    } else {
-      reject(new Error('chrome.storage.local is not available'));
-    }
-  });
+  await chromeLocalCall<void>((cb) =>
+    window.chrome?.storage?.local?.remove(name, cb),
+  );
 }

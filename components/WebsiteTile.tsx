@@ -1,6 +1,8 @@
 import React, { memo, useEffect, useState } from 'react';
 import { Website } from '../types';
 import { cacheWebsiteIcon, getCachedWebsiteIcon, removeCachedWebsiteIcon } from './utils/iconService';
+import { getTileSizeClass, getIconPixelSize, getIconLoadingPixelSize } from './utils/styleUtils';
+import { ChevronLeftIcon, ChevronRightIcon, PencilIcon } from './icons';
 
 interface WebsiteTileProps {
   website: Website;
@@ -9,46 +11,6 @@ interface WebsiteTileProps {
   onMove: (website: Website, direction: 'left' | 'right') => void;
   tileSize?: string;
 }
-
-const getTileSizeClass = (size: string | undefined) => {
-  switch (size) {
-    case 'small':
-      return 'w-28 h-28';
-    case 'medium':
-      return 'w-32 h-32';
-    case 'large':
-      return 'w-36 h-36';
-    default:
-      return 'w-32 h-32';
-  }
-};
-
-
-const getIconPixelSize = (size: string | undefined): number => {
-  switch (size) {
-    case 'small':
-      return 34;
-    case 'medium':
-      return 42;
-    case 'large':
-      return 48;
-    default:
-      return 40;
-  }
-};
-
-const getIconLoadingPixelSize = (size: string | undefined): number => {
-  switch (size) {
-    case 'small':
-      return 24;
-    case 'medium':
-      return 32;
-    case 'large':
-      return 40;
-    default:
-      return 32;
-  }
-};
 
 const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, onMove, tileSize }) => {
 
@@ -141,15 +103,9 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
       </a>
       {isEditing && (
         <div className="liquid-surface liquid-edit-toolbar">
-          <button onClick={() => onMove(website, 'left')} className="liquid-edit-action liquid-focus" aria-label={`Move ${website.name} left`}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-            <path fillRule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z" />
-          </svg></button>
-          <button onClick={() => onEdit(website)} className="liquid-edit-action liquid-focus" aria-label={`Edit ${website.name}`}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
-          </svg></button>
-          <button onClick={() => onMove(website, 'right')} className="liquid-edit-action liquid-focus" aria-label={`Move ${website.name} right`}><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-            <path fillRule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z" />
-          </svg></button>
+          <button onClick={() => onMove(website, 'left')} className="liquid-edit-action liquid-focus" aria-label={`Move ${website.name} left`}><ChevronLeftIcon size={14} /></button>
+          <button onClick={() => onEdit(website)} className="liquid-edit-action liquid-focus" aria-label={`Edit ${website.name}`}><PencilIcon size={14} /></button>
+          <button onClick={() => onMove(website, 'right')} className="liquid-edit-action liquid-focus" aria-label={`Move ${website.name} right`}><ChevronRightIcon size={14} /></button>
         </div>
       )}
     </div>

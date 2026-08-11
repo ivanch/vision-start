@@ -6,9 +6,18 @@ import {
 } from './StorageLocalManager';
 
 const MAX_CACHED_ICON_BYTES = 256 * 1024;
+const MAX_RESOLVED_ICONS = 50;
 const resolvedIconCache = new Map<string, string>();
 const iconCacheLookups = new Map<string, Promise<string | null>>();
 const iconCacheRequests = new Map<string, Promise<string | null>>();
+
+const rememberResolvedIcon = (iconUrl: string, dataUrl: string): void => {
+  resolvedIconCache.set(iconUrl, dataUrl);
+  if (resolvedIconCache.size > MAX_RESOLVED_ICONS) {
+    const oldest = resolvedIconCache.keys().next().value;
+    if (oldest !== undefined) resolvedIconCache.delete(oldest);
+  }
+};
 
 const isDataUrl = (value: string): boolean => value.startsWith('data:');
 
@@ -38,9 +47,14 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
     reader.readAsDataURL(blob);
   });
 
-async function getWebsiteIcon(url: string): Promise<string> {
+async function getWebsiteIcon(rawUrl: string): Promise<string> {
+  let targetUrl = rawUrl.trim();
+  if (targetUrl && !/^https?:\/\//i.test(targetUrl)) {
+    targetUrl = `https://${targetUrl}`;
+  }
+
   try {
-    const response = await fetch(url);
+    const response = await fetch(targetUrl);
     const html = await response.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
 
@@ -48,7 +62,7 @@ async function getWebsiteIcon(url: string): Promise<string> {
     if (appleTouchIcon) {
       const href = appleTouchIcon.getAttribute('href');
       if (href) {
-        return new URL(href, url).href;
+        return new URL(href, targetUrl).href;
       }
     }
 
@@ -56,15 +70,19 @@ async function getWebsiteIcon(url: string): Promise<string> {
     if (iconLink) {
       const href = iconLink.getAttribute('href');
       if (href) {
-        return new URL(href, url).href;
+        return new URL(href, targetUrl).href;
       }
     }
-
   } catch (error) {
     console.error('Error fetching and parsing HTML for icon:', error);
   }
 
-  return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=128`;
+  try {
+    const hostname = new URL(targetUrl).hostname;
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
+  } catch {
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(rawUrl)}&sz=128`;
+  }
 }
 
 async function getCachedWebsiteIcon(iconUrl: string): Promise<string | null> {
@@ -80,7 +98,7 @@ async function getCachedWebsiteIcon(iconUrl: string): Promise<string | null> {
   const lookup = getCachedIconFromChromeStorageLocal(iconUrl)
     .then((cachedIcon) => {
       if (isValidCachedIcon(cachedIcon)) {
-        resolvedIconCache.set(iconUrl, cachedIcon);
+        rememberResolvedIcon(iconUrl, cachedIcon);
         return cachedIcon;
       }
       return null;
@@ -121,7 +139,7 @@ async function cacheWebsiteIcon(iconUrl: string): Promise<string | null> {
       }
 
       const dataUrl = await blobToDataUrl(blob);
-      resolvedIconCache.set(iconUrl, dataUrl);
+      rememberResolvedIcon(iconUrl, dataUrl);
       await saveCachedIconToChromeStorageLocal(iconUrl, dataUrl);
       return dataUrl;
     } catch {

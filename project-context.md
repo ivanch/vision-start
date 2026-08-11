@@ -1,6 +1,6 @@
 ---
 project_name: Vision Start
-date: 2026-08-07
+date: 2026-08-11
 type: general_overview
 ---
 
@@ -65,13 +65,15 @@ The startpage is composed of widgets and a configuration panel:
 
 Performance notes:
 - Website tile icons check a deterministic `vision-start:icon:<encoded-source-url>` entry in `chrome.storage.local` before loading the external URL. Cache population uses ordinary CORS-enabled `fetch`, deduplicates in-flight requests, stores only `image/*` responses up to 256KiB, and never intercepts or proxies outside requests.
-- Modals (`ConfigurationModal`, `WebsiteEditModal`, `CategoryEditModal`) are code-split via `React.lazy` + `Suspense` and only loaded when opened. `ConfigurationModal` is the heaviest chunk (it pulls in `@hello-pangea/dnd` via `ServerWidgetTab`); the rest of `@hello-pangea/dnd` is isolated from the initial load.
+- Modals (`ConfigurationModal`, `WebsiteEditModal`, `CategoryEditModal`) are code-split via `React.lazy` + `Suspense` and only loaded when opened. `ConfigurationModal` is the heaviest chunk (it pulls in `@hello-pangea/dnd` via `ServerWidgetTab`); the rest of `@hello-pangea/dnd` is isolated from the initial load. `WebsiteEditModal` and `CategoryEditModal` share a common `ModalShell` component.
 - `WebsiteTile` and `CategoryGroup` are wrapped in `React.memo`; `App.tsx` handlers are `useCallback`-stabilized and pure alignment helpers are hoisted to module scope, so opening a modal / toggling edit no longer re-renders every tile.
 - `Clock` updates on the minute boundary (one `setTimeout` → `setInterval(60_000)`) instead of every second.
 - `jsping` cancels its 5s timeout on image resolve/error and nulls the `Image` handlers, preventing leaks across ping cycles.
 - `ServerWidget` batches pending-status updates into one `setState` and depends on a stable servers signature (ids+addresses) so unrelated config edits don't restart pings.
-- Icon metadata (`/icon-metadata.json`) is module-level cached and hydrated into each icon-picker instance, fetched lazily on first focus of the icon field with `cache: 'force-cache'`, filter debounced ~150ms, and color variants are expanded lazily during filtering rather than upfront.
-- `Wallpaper` caches resolved wallpaper URLs in a module-level `Map`; its image transition and readability overlay classes live in `index.css`.
+- Icon metadata (`/icon-metadata.json`) is fetched lazily on first focus of the icon field with `cache: 'force-cache'`, filter debounced ~150ms, and color variants are expanded lazily during filtering rather than upfront. The module-level metadata cache is released when the picker modal unmounts (the browser HTTP cache makes reopening cheap), and the dashboard-icon URL for a picker entry is derived from one shared helper.
+- `Wallpaper` resolves wallpaper URLs through a module-level `Map` bounded to the last 3 entries — so uploaded base64 wallpapers (up to ~4.5MB strings) are not retained in memory for the page's lifetime; its image transition and readability overlay classes live in `index.css`. Wallpaper rotation and frequency parsing (`h`/`d` → hours/ms) share helpers with the Theme tab via `components/utils/wallpaperUtils.ts`.
+- The website icon service keeps an in-memory resolved data-URL cache bounded to 50 entries (FIFO eviction) to avoid unbounded growth from many tiles.
+- Shared styling/frequency helpers live in `components/utils/styleUtils.ts` (tile/clock/title size classes, icon pixel sizes, alignment classes, size presets), `wallpaperUtils.ts`, and `urlUtils.ts` (URL→filename extraction, also used by wallpaper storage). Range sliders use the shared `RangeSlider` component; repeated glyphs (pencil, plus, trash, chevrons) use `components/icons.tsx`.
 
 Planned / To-do (tracked in `README.md`):
 - Dynamic Weather widget, Search Bar widget, draggable/resizable grid system, Notes/Scratchpad widget, theming (light/dark, accent colors, wallpaper-derived accents, minimal feel toggle), and a general "refactor everything" note.
@@ -98,9 +100,11 @@ vision-start/
 │   ├── WebsiteEditModal.tsx     # Add/edit a website (icon picker inside)
 │   ├── CategoryEditModal.tsx    # Add/edit a category
 │   ├── ConfigurationModal.tsx   # Tabbed settings drawer with Export/Import
+│   ├── ModalShell.tsx           # Shared centered-modal shell (backdrop, title, footer buttons)
 │   ├── ServerWidget.tsx         # Bottom server status pill
 │   ├── Dropdown.tsx             # Reusable glassy dropdown (single/multi select)
 │   ├── ToggleSwitch.tsx         # Reusable toggle switch
+│   ├── icons.tsx                # Shared inline SVG icons (pencil, plus, trash, chevrons)
 │   │
 │   ├── layout/
 │   │   ├── Header.tsx               # Renders Clock + Title
@@ -112,7 +116,8 @@ vision-start/
 │   │   ├── GeneralTab.tsx           # Title, sizes, alignment, tile size
 │   │   ├── ThemeTab.tsx             # Background selection, wallpaper cadence, wallpaper mgmt, blur/brightness/opacity
 │   │   ├── ClockTab.tsx             # Clock enable/size/font/format
-│   │   └── ServerWidgetTab.tsx      # Server widget enable/ping/servers (drag-to-reorder)
+│   │   ├── ServerWidgetTab.tsx      # Server widget enable/ping/servers (drag-to-reorder)
+│   │   └── RangeSlider.tsx          # Shared labeled range slider (with progress fill)
 │   │
 │   ├── services/
 │   │   └── ConfigurationService.ts  # DEFAULT_CONFIG, load/save config & wallpapers, add/delete wallpaper, export/import config, reset wallpaper state
@@ -121,7 +126,10 @@ vision-start/
 │       ├── baseWallpapers.ts        # Built-in wallpaper catalog (imgur/wallpapershome URLs)
 │       ├── iconService.ts           # icon discovery plus CORS-safe website icon cache lookup/population
 │       ├── jsping.js                # Image-load based "ping" with 5s timeout (used by ServerWidget)
-│       └── StorageLocalManager.ts   # chrome.storage.local wrappers + availability check; wallpaper and icon cache storage
+│       ├── StorageLocalManager.ts   # chrome.storage.local wrappers + availability check; wallpaper and icon cache storage
+│       ├── styleUtils.ts            # Shared tile/clock/title size classes, icon pixel sizes, alignment classes, size presets
+│       ├── wallpaperUtils.ts        # Wallpaper frequency parsing (h/d → hours/ms) and random-index helpers
+│       └── urlUtils.ts              # URL → filename extraction (shared by wallpaper storage paths)
 │
 ├── public/
 │   ├── favicon.ico
@@ -232,7 +240,7 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 
 ## 8. Notable Behaviors & Quirks
 
-- **`EditModal.tsx` has been removed.** It was a legacy drag-and-drop editor that imported non-existent `lucide-react` and `./IconPicker`; it was never wired into `App.tsx`. Use `WebsiteEditModal.tsx` / `CategoryEditModal.tsx` instead.
+- **`EditModal.tsx` has been removed.** It was a legacy drag-and-drop editor that imported non-existent `lucide-react` and `./IconPicker`; it was never wired into `App.tsx`. Use `WebsiteEditModal.tsx` / `CategoryEditModal.tsx` instead, both of which share the `ModalShell` component.
 - **`@hello-pangea/dnd`** is used only in `ServerWidgetTab.tsx` (server reorder), which itself is imported by the lazy-loaded `ConfigurationModal`, so it lives in a separate chunk and is absent from the initial page load. `WebsiteTile` moves tiles within their own category via simple left/right buttons (no cross-category movement), not drag-and-drop.
 - **Chrome storage is optional.** `StorageLocalManager` checks availability once (`checkChromeStorageLocalAvailable`) and caches it. Remote wallpaper URLs work without it because their URLs live in `userWallpapers`; file upload is gated off when unavailable, and `addWallpaperToChromeStorageLocal` throws if called without it.
 - **Wallpaper rotation** is time-based, evaluated on render/mount rather than via a timer. It reads `wallpaperState` from `localStorage`, selects a random non-current wallpaper when the frequency window has elapsed, and writes its index back; the frequency is clamped to 1–48 hours, while older saved values like `1d`/`2d` still resolve to their hour equivalents. The renderer clamps `currentIndex` to the valid range of the current selection and walks the list forward to find a wallpaper whose data actually resolves (so deleting the currently-displayed wallpaper, or shrinking the selection, never leaves the background blank); if no wallpaper resolves, the background layer is hidden. When the selection becomes empty, `wallpaperState` is reset and the background is hidden. A manual "Random Wallpaper" button in the Theme tab also picks a random non-current wallpaper and bumps a `wallpaperVersion` nonce in `App.tsx` that retriggers the renderer.
@@ -266,4 +274,4 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 
 ---
 
-_Last updated: 2026-08-07. Generated as a general project overview; not a coding-style guide._
+_Last updated: 2026-08-11. Generated as a general project overview; not a coding-style guide._
