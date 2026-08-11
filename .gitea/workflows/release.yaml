@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      zip-file: vision-start-${{ gitea.ref_name }}.zip
+      zip-file: ${{ steps.set-archive.outputs.archive-name }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -50,20 +50,33 @@ jobs:
 
       - name: Prepare release
         run: |
+          mkdir -p vision-start
           mv dist vision-start/
           mv extension vision-start/
           mv manifest.json vision-start/
 
+      - name: Set archive name
+        id: set-archive
+        run: |
+          SAFE_REF="${GITEA_REF_NAME//\//-}"
+          ARCHIVE="vision-start-${SAFE_REF}.zip"
+          if [ -n "${GITEA_ENV:-}" ]; then echo "ARCHIVE_NAME=${ARCHIVE}" >> "$GITEA_ENV"; fi
+          if [ -n "${GITHUB_ENV:-}" ]; then echo "ARCHIVE_NAME=${ARCHIVE}" >> "$GITHUB_ENV"; fi
+          if [ -n "${GITEA_OUTPUT:-}" ]; then echo "archive-name=${ARCHIVE}" >> "$GITEA_OUTPUT"; fi
+          if [ -n "${GITHUB_OUTPUT:-}" ]; then echo "archive-name=${ARCHIVE}" >> "$GITHUB_OUTPUT"; fi
+        env:
+          GITEA_REF_NAME: ${{ gitea.ref_name }}
+
       - name: Create zip archive
         run: |
           cd vision-start
-          zip -r ../vision-start-${{ gitea.ref_name }}.zip *
+          zip -r "../${ARCHIVE_NAME}" *
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: release-zip
-          path: vision-start-${{ gitea.ref_name }}.zip
+          path: ${{ env.ARCHIVE_NAME }}
 
   virus-total-check:
     runs-on: ubuntu-latest
@@ -84,7 +97,7 @@ jobs:
         id: vt-check
         env:
           virustotal_apikey: ${{ secrets.VIRUSTOTAL_APIKEY }}
-          VIRUS_TOTAL_FILE: vision-start-${{ gitea.ref_name }}.zip
+          VIRUS_TOTAL_FILE: ${{ needs.build.outputs.zip-file }}
         run: |
           # Run the VirusTotal check script and capture output in real-time
           set -o pipefail
@@ -124,7 +137,7 @@ jobs:
           name: ${{ gitea.ref_name }}
           tag_name: ${{ gitea.ref_name }}
           files: |
-            vision-start-${{ gitea.ref_name }}.zip
+            ${{ needs.build.outputs.zip-file }}
             release-screenshots/home.png
             release-screenshots/editing.png
             release-screenshots/configuration.png

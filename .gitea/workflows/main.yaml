@@ -39,20 +39,30 @@ jobs:
 
       - name: Prepare release
         run: |
+          mkdir -p vision-start
           mv dist vision-start/
           mv extension vision-start/
           mv manifest.json vision-start/
 
+      - name: Set archive name
+        run: |
+          SAFE_REF="${GITEA_REF_NAME//\//-}"
+          ARCHIVE="vision-start-${SAFE_REF}.zip"
+          if [ -n "${GITEA_ENV:-}" ]; then echo "ARCHIVE_NAME=${ARCHIVE}" >> "$GITEA_ENV"; fi
+          if [ -n "${GITHUB_ENV:-}" ]; then echo "ARCHIVE_NAME=${ARCHIVE}" >> "$GITHUB_ENV"; fi
+        env:
+          GITEA_REF_NAME: ${{ gitea.ref_name }}
+
       - name: Create zip archive
         run: |
           cd vision-start
-          zip -r ../vision-start-${{ gitea.ref_name }}.zip *
+          zip -r "../${ARCHIVE_NAME}" *
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: release-zip
-          path: vision-start-${{ gitea.ref_name }}.zip
+          path: ${{ env.ARCHIVE_NAME }}
 
   build_vision_start:
     name: Build Vision Start Image
