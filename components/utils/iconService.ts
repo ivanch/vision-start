@@ -47,39 +47,72 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
     reader.readAsDataURL(blob);
   });
 
+const TRUSTED_TLDS = new Set([
+  'com',
+  'org',
+  'net',
+  'gov',
+  'edu',
+  'io',
+  'co',
+  'dev',
+  'app',
+  'me',
+  'ai',
+  'info',
+  'br',
+  'uk',
+  'de',
+]);
+
+const isTrustedTld = (hostname: string): boolean => {
+  if (!hostname || !hostname.includes('.')) return false;
+  const parts = hostname.toLowerCase().split('.');
+  const lastPart = parts[parts.length - 1];
+  return TRUSTED_TLDS.has(lastPart);
+};
+
+const getIconFetchSource = (iconUrl: string): string | null => {
+  try {
+    const url = new URL(iconUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    if (
+      (url.hostname === 'www.google.com' || url.hostname === 'google.com') &&
+      url.pathname.startsWith('/s2/favicons')
+    ) {
+      const domain = url.searchParams.get('domain');
+      if (domain) {
+        let cleanHost = domain.trim().replace(/^https?:\/\//i, '');
+        try {
+          cleanHost = new URL(`https://${cleanHost}`).hostname;
+        } catch {
+          // ignore parsing error
+        }
+        if (cleanHost && isTrustedTld(cleanHost)) {
+          return `https://icon.horse/icon/${encodeURIComponent(cleanHost)}`;
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 async function getWebsiteIcon(rawUrl: string): Promise<string> {
-  let targetUrl = rawUrl.trim();
-  if (targetUrl && !/^https?:\/\//i.test(targetUrl)) {
-    targetUrl = `https://${targetUrl}`;
-  }
+  const trimmed = rawUrl.trim();
+  const hasProtocol = /^https?:\/\//i.test(trimmed);
+  const targetUrl = hasProtocol ? trimmed : `https://${trimmed}`;
 
   try {
-    const response = await fetch(targetUrl);
-    const html = await response.text();
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-
-    const appleTouchIcon = doc.querySelector('link[rel="apple-touch-icon"]');
-    if (appleTouchIcon) {
-      const href = appleTouchIcon.getAttribute('href');
-      if (href) {
-        return new URL(href, targetUrl).href;
+    const parsed = new URL(targetUrl);
+    if (!isTrustedTld(parsed.hostname)) {
+      if (!hasProtocol) {
+        return `http://${parsed.host}/favicon.ico`;
       }
+      return `${parsed.origin}/favicon.ico`;
     }
-
-    const iconLink = doc.querySelector('link[rel="icon"][type="image/png"]') || doc.querySelector('link[rel="icon"]');
-    if (iconLink) {
-      const href = iconLink.getAttribute('href');
-      if (href) {
-        return new URL(href, targetUrl).href;
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching and parsing HTML for icon:', error);
-  }
-
-  try {
-    const hostname = new URL(targetUrl).hostname;
-    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
+    return `https://www.google.com/s2/favicons?domain=${parsed.hostname}&sz=128`;
   } catch {
     return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(rawUrl)}&sz=128`;
   }
@@ -125,8 +158,11 @@ async function cacheWebsiteIcon(iconUrl: string): Promise<string | null> {
     const cachedIcon = await getCachedWebsiteIcon(iconUrl);
     if (cachedIcon) return cachedIcon;
 
+    const fetchSource = getIconFetchSource(iconUrl);
+    if (!fetchSource) return null;
+
     try {
-      const response = await fetch(iconUrl, { mode: 'cors' });
+      const response = await fetch(fetchSource);
       if (!response.ok || response.type === 'opaque') return null;
 
       const blob = await response.blob();
