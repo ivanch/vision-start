@@ -8,42 +8,13 @@ import ConfigurationButton from './components/layout/ConfigurationButton';
 import CategoryGroup from './components/layout/CategoryGroup';
 import Wallpaper from './components/Wallpaper';
 import { ConfigurationService } from './components/services/ConfigurationService';
+import { getAlignmentClass } from './components/utils/styleUtils';
+import { getRandomWallpaperIndex } from './components/utils/wallpaperUtils';
+import { PlusIcon } from './components/icons';
 
 const ConfigurationModal = lazy(() => import('./components/ConfigurationModal'));
 const WebsiteEditModal = lazy(() => import('./components/WebsiteEditModal'));
 const CategoryEditModal = lazy(() => import('./components/CategoryEditModal'));
-
-const getAlignmentClass = (alignment: string) => {
-  switch (alignment) {
-    case 'top':
-      return 'justify-start';
-    case 'middle':
-      return 'justify-center';
-    case 'bottom':
-      return 'justify-end';
-    default:
-      return 'justify-center';
-  }
-};
-
-const getHorizontalAlignmentClass = (alignment: string) => {
-  switch (alignment) {
-    case 'left':
-      return 'justify-start';
-    case 'middle':
-      return 'justify-center';
-    case 'right':
-      return 'justify-end';
-    default:
-      return 'justify-center';
-  }
-};
-
-const getRandomWallpaperIndex = (wallpaperCount: number, currentIndex: number): number => {
-  if (wallpaperCount <= 1) return 0;
-  const offset = Math.floor(Math.random() * (wallpaperCount - 1)) + 1;
-  return (currentIndex + offset) % wallpaperCount;
-};
 
 const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(() => {
@@ -224,13 +195,12 @@ const App: React.FC = () => {
             setAddingWebsite={setAddingWebsite}
             setEditingWebsite={setEditingWebsite}
             handleMoveWebsite={handleMoveWebsite}
-            getHorizontalAlignmentClass={getHorizontalAlignmentClass}
             horizontalAlignment={config.horizontalAlignment}
             tileSize={config.tileSize}
           />
         ))}
         {isEditing && (
-          <div className={`flex justify-center transition-all duration-200 ease-ios transform ${isEditing ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}>
+          <div className="flex justify-center transition-all duration-200 ease-ios transform scale-100 opacity-100">
             <button
               onClick={() => {
                 setEditingCategory(null);
@@ -239,10 +209,7 @@ const App: React.FC = () => {
               className="liquid-surface liquid-control liquid-ghost-tile liquid-focus min-h-16 px-6 text-sm font-bold"
               aria-label="Add category"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
-                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
-              </svg>
+              <PlusIcon size={22} />
               Add category
             </button>
           </div>

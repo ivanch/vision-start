@@ -1,6 +1,14 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import Dropdown from '../Dropdown';
 import { Config, Wallpaper } from '../../types';
+import RangeSlider from './RangeSlider';
+import { TrashIcon } from '../icons';
+import {
+  getWallpaperFrequencyHours,
+  formatWallpaperFrequency,
+  MIN_WALLPAPER_FREQUENCY_HOURS,
+  MAX_WALLPAPER_FREQUENCY_HOURS,
+} from '../utils/wallpaperUtils';
 
 interface ThemeTabProps {
   config: Config;
@@ -13,31 +21,6 @@ interface ThemeTabProps {
   onDeleteWallpaper: (wallpaper: Wallpaper) => Promise<void>;
   onRandomWallpaper: () => void;
 }
-
-type RangeStyle = React.CSSProperties & { '--range-progress': string };
-
-const getRangeStyle = (value: number, min: number, max: number): RangeStyle => {
-  const progress = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
-  return { '--range-progress': `${progress}%` };
-};
-
-const MIN_WALLPAPER_FREQUENCY_HOURS = 1;
-const MAX_WALLPAPER_FREQUENCY_HOURS = 48;
-const DEFAULT_WALLPAPER_FREQUENCY_HOURS = 24;
-
-const clampWallpaperFrequencyHours = (hours: number): number =>
-  Math.min(MAX_WALLPAPER_FREQUENCY_HOURS, Math.max(MIN_WALLPAPER_FREQUENCY_HOURS, Math.round(hours)));
-
-const getWallpaperFrequencyHours = (frequency: string): number => {
-  const match = frequency.match(/^(\d+)(h|d)$/);
-  if (!match) return DEFAULT_WALLPAPER_FREQUENCY_HOURS;
-  const value = Number(match[1]);
-  const hours = match[2] === 'd' ? value * 24 : value;
-  return clampWallpaperFrequencyHours(hours);
-};
-
-const formatWallpaperFrequency = (hours: number): string =>
-  `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
 
 const ThemeTab: React.FC<ThemeTabProps> = ({
   config,
@@ -52,7 +35,6 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
 }) => {
   const [newWallpaperName, setNewWallpaperName] = useState('');
   const [newWallpaperUrl, setNewWallpaperUrl] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const wallpaperFrequencyHours = getWallpaperFrequencyHours(config.wallpaperFrequency);
 
   const handleAddWallpaper = async () => {
@@ -76,8 +58,8 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
     if (!file) return;
     try {
       await onAddWallpaperFile(file);
-    } catch (error: any) {
-      alert(error?.message || 'Error adding wallpaper. Please try again.');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Error adding wallpaper. Please try again.');
       console.error(error);
     }
     e.target.value = '';
@@ -96,74 +78,39 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
         />
       </div>
       {Array.isArray(config.currentWallpapers) && config.currentWallpapers.length > 1 && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <label className="text-slate-300 text-sm font-semibold">Change Frequency</label>
-          <div className="flex items-center gap-4">
-            <input
-              type="range"
-              min={MIN_WALLPAPER_FREQUENCY_HOURS}
-              max={MAX_WALLPAPER_FREQUENCY_HOURS}
-              step="1"
-              value={wallpaperFrequencyHours}
-              onChange={(e) => onChange({ wallpaperFrequency: `${Number(e.target.value)}h` })}
-              className="liquid-range"
-              style={getRangeStyle(
-                wallpaperFrequencyHours,
-                MIN_WALLPAPER_FREQUENCY_HOURS,
-                MAX_WALLPAPER_FREQUENCY_HOURS,
-              )}
-            />
-            <span className="w-20 text-right text-sm text-slate-200">
-              {formatWallpaperFrequency(wallpaperFrequencyHours)}
-            </span>
-          </div>
-        </div>
+        <RangeSlider
+          label="Change Frequency"
+          value={wallpaperFrequencyHours}
+          min={MIN_WALLPAPER_FREQUENCY_HOURS}
+          max={MAX_WALLPAPER_FREQUENCY_HOURS}
+          formatValue={formatWallpaperFrequency}
+          onChange={(value) => onChange({ wallpaperFrequency: `${value}h` })}
+        />
       )}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <label className="text-slate-300 text-sm font-semibold">Wallpaper Blur</label>
-        <div className="flex items-center gap-4">
-          <input
-            type="range"
-            min="0"
-            max="50"
-            value={config.wallpaperBlur}
-            onChange={(e) => onChange({ wallpaperBlur: Number(e.target.value) })}
-            className="liquid-range"
-            style={getRangeStyle(config.wallpaperBlur, 0, 50)}
-          />
-          <span className="w-12 text-right text-sm text-slate-200">{config.wallpaperBlur}px</span>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <label className="text-slate-300 text-sm font-semibold">Wallpaper Brightness</label>
-        <div className="flex items-center gap-4">
-          <input
-            type="range"
-            min="0"
-            max="200"
-            value={config.wallpaperBrightness}
-            onChange={(e) => onChange({ wallpaperBrightness: Number(e.target.value) })}
-            className="liquid-range"
-            style={getRangeStyle(config.wallpaperBrightness, 0, 200)}
-          />
-          <span className="w-12 text-right text-sm text-slate-200">{config.wallpaperBrightness}%</span>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <label className="text-slate-300 text-sm font-semibold">Wallpaper Opacity</label>
-        <div className="flex items-center gap-4">
-          <input
-            type="range"
-            min="1"
-            max="100"
-            value={config.wallpaperOpacity}
-            onChange={(e) => onChange({ wallpaperOpacity: Number(e.target.value) })}
-            className="liquid-range"
-            style={getRangeStyle(config.wallpaperOpacity, 1, 100)}
-          />
-          <span className="w-12 text-right text-sm text-slate-200">{config.wallpaperOpacity}%</span>
-        </div>
-      </div>
+      <RangeSlider
+        label="Wallpaper Blur"
+        value={config.wallpaperBlur}
+        min={0}
+        max={50}
+        valueSuffix="px"
+        onChange={(value) => onChange({ wallpaperBlur: value })}
+      />
+      <RangeSlider
+        label="Wallpaper Brightness"
+        value={config.wallpaperBrightness}
+        min={0}
+        max={200}
+        valueSuffix="%"
+        onChange={(value) => onChange({ wallpaperBrightness: value })}
+      />
+      <RangeSlider
+        label="Wallpaper Opacity"
+        value={config.wallpaperOpacity}
+        min={1}
+        max={100}
+        valueSuffix="%"
+        onChange={(value) => onChange({ wallpaperOpacity: value })}
+      />
       <div>
         <h3 className="text-slate-300 text-sm font-semibold mb-2">User Wallpapers</h3>
         <div className="flex flex-col gap-2">
@@ -178,20 +125,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
                 className="liquid-edit-action liquid-focus text-red-300 hover:text-red-100"
                 aria-label={`Delete ${wallpaper.name}`}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  fill="currentColor"
-                  className="bi bi-trash"
-                  viewBox="0 0 16 16"
-                >
-                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                  <path
-                    fillRule="evenodd"
-                    d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
-                  />
-                </svg>
+                <TrashIcon size={16} />
               </button>
             </div>
           ))}
@@ -254,7 +188,6 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
                   type="file"
                   className="hidden"
                   onChange={handleFileUpload}
-                  ref={fileInputRef}
                 />
               </label>
             </div>

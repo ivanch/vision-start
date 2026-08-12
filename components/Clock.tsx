@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getClockSizeClass } from './utils/styleUtils';
 
 interface ClockProps {
   config: {
@@ -9,10 +10,9 @@ interface ClockProps {
       format: string;
     };
   };
-  getClockSizeClass: (size: string) => string;
 }
 
-const Clock: React.FC<ClockProps> = ({ config, getClockSizeClass }) => {
+const Clock: React.FC<ClockProps> = ({ config }) => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {

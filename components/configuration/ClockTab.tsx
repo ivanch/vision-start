@@ -2,6 +2,7 @@ import React from 'react';
 import Dropdown from '../Dropdown';
 import ToggleSwitch from '../ToggleSwitch';
 import { Config } from '../../types';
+import { SIZE_OPTIONS } from '../utils/styleUtils';
 
 interface ClockTabProps {
   config: Config;
@@ -28,12 +29,7 @@ const ClockTab: React.FC<ClockTabProps> = ({ config, onChange }) => {
           name="clock.size"
           value={config.clock.size}
           onChange={(e) => updateClock({ size: e.target.value as string })}
-          options={[
-            { value: 'tiny', label: 'Tiny' },
-            { value: 'small', label: 'Small' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'large', label: 'Large' },
-          ]}
+          options={SIZE_OPTIONS}
         />
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

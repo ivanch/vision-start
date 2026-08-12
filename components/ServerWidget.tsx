@@ -12,16 +12,13 @@ interface ServerWidgetProps {
   };
 }
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'online':
-      return 'bg-green-400 text-green-400';
-    case 'offline':
-      return 'bg-red-400 text-red-400';
-    default:
-      return 'bg-slate-400 text-slate-400';
-  }
+const STATUS_COLORS: Record<string, string> = {
+  online: 'bg-green-400 text-green-400',
+  offline: 'bg-red-400 text-red-400',
 };
+
+const getStatusColor = (status: string): string =>
+  STATUS_COLORS[status] ?? 'bg-slate-400 text-slate-400';
 
 const ServerWidget: React.FC<ServerWidgetProps> = ({ config }) => {
   const [serverStatus, setServerStatus] = useState<Record<string, string>>({});
