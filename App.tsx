@@ -9,7 +9,7 @@ import CategoryGroup from './components/layout/CategoryGroup';
 import Wallpaper from './components/Wallpaper';
 import { ConfigurationService } from './components/services/ConfigurationService';
 import { getAlignmentClass } from './components/utils/styleUtils';
-import { getRandomWallpaperIndex } from './components/utils/wallpaperUtils';
+import { getRandomWallpaperIndex, loadWallpaperState, saveWallpaperState } from './components/utils/wallpaperUtils';
 import { PlusIcon } from './components/icons';
 
 const ConfigurationModal = lazy(() => import('./components/ConfigurationModal'));
@@ -62,17 +62,9 @@ const App: React.FC = () => {
     const names = config.currentWallpapers;
     if (names.length === 0) return;
     try {
-      const state = JSON.parse(localStorage.getItem('wallpaperState') || '{}');
-      const current = typeof state.currentIndex === 'number' ? state.currentIndex : 0;
-      const safeCurrent = current < 0 || current >= names.length ? 0 : current;
-      const randomIndex = getRandomWallpaperIndex(names.length, safeCurrent);
-      localStorage.setItem(
-        'wallpaperState',
-        JSON.stringify({
-          lastWallpaperChange: new Date().toISOString(),
-          currentIndex: randomIndex,
-        }),
-      );
+      const { currentIndex } = loadWallpaperState(names);
+      const randomIndex = getRandomWallpaperIndex(names.length, currentIndex);
+      saveWallpaperState(names, randomIndex, Date.now());
     } catch (error) {
       console.error('Error randomizing wallpaper state', error);
     }

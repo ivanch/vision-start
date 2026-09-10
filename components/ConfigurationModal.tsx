@@ -51,7 +51,6 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
 
   useEffect(() => {
     onWallpaperChange({ currentWallpapers: config.currentWallpapers });
-    ConfigurationService.resetWallpaperState();
   }, [config.currentWallpapers]);
 
   const handleClose = () => {

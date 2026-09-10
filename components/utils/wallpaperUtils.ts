@@ -22,3 +22,30 @@ export const getRandomWallpaperIndex = (wallpaperCount: number, currentIndex: nu
   const offset = Math.floor(Math.random() * (wallpaperCount - 1)) + 1;
   return (currentIndex + offset) % wallpaperCount;
 };
+
+export const loadWallpaperState = (names: string[], now = Date.now()) => {
+  let state: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem('wallpaperState') || '{}');
+    if (parsed && typeof parsed === 'object') state = parsed as Record<string, unknown>;
+  } catch {
+    state = {};
+  }
+  const namedIndex = typeof state.currentName === 'string' ? names.indexOf(state.currentName) : -1;
+  const index = namedIndex >= 0 ? namedIndex : typeof state.currentName === 'string' ? 0 : state.currentIndex;
+  const currentIndex = typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < names.length ? index : 0;
+  const timestamp = typeof state.lastWallpaperChange === 'string' ? Date.parse(state.lastWallpaperChange) : NaN;
+  const lastChange = Number.isFinite(timestamp) && timestamp <= now && timestamp >= 0 ? timestamp : now;
+  return { currentIndex, lastChange };
+};
+
+export const saveWallpaperState = (names: string[], currentIndex: number, lastChange: number): void => {
+  const payload = JSON.stringify({
+    currentIndex,
+    currentName: names[currentIndex],
+    lastWallpaperChange: new Date(lastChange).toISOString(),
+  });
+  if (localStorage.getItem('wallpaperState') !== payload) {
+    localStorage.setItem('wallpaperState', payload);
+  }
+};

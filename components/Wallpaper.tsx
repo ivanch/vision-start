@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { baseWallpapers } from './utils/baseWallpapers';
 import { Wallpaper as WallpaperType } from '../types';
 import { getWallpaperFromChromeStorageLocal } from './utils/StorageLocalManager';
-import { getRandomWallpaperIndex, getWallpaperFrequencyMs } from './utils/wallpaperUtils';
+import { getRandomWallpaperIndex, getWallpaperFrequencyMs, loadWallpaperState, saveWallpaperState } from './utils/wallpaperUtils';
 
 interface WallpaperProps {
   wallpaperNames: string[];
@@ -64,41 +64,31 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
 
   useEffect(() => {
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let revision = 0;
+    wallpaperUrlCache.clear();
 
     const updateWallpaper = async () => {
+      const request = ++revision;
+      clearTimeout(timer);
       if (wallpaperNames.length === 0) {
-        if (!cancelled) setImageUrl(undefined);
-        localStorage.setItem(
-          'wallpaperState',
-          JSON.stringify({ lastWallpaperChange: new Date().toISOString(), currentIndex: 0 }),
-        );
+        setImageUrl(undefined);
+        saveWallpaperState([], 0, loadWallpaperState([]).lastChange);
         return;
       }
 
-      const wallpaperState = JSON.parse(localStorage.getItem('wallpaperState') || '{}');
-      const lastChange = wallpaperState.lastWallpaperChange
-        ? new Date(wallpaperState.lastWallpaperChange).getTime()
-        : 0;
       const now = Date.now();
+      const { currentIndex, lastChange } = loadWallpaperState(wallpaperNames, now);
       const freqMs = getWallpaperFrequencyMs(wallpaperFrequency);
-
-      let storedIndex =
-        typeof wallpaperState.currentIndex === 'number' ? wallpaperState.currentIndex : 0;
-      if (storedIndex < 0 || storedIndex >= wallpaperNames.length) storedIndex = 0;
-
-      const shouldRotate = now - lastChange >= freqMs;
+      const shouldRotate = wallpaperNames.length > 1 && now - lastChange >= freqMs;
       let resolvedIndex = shouldRotate
-        ? getRandomWallpaperIndex(wallpaperNames.length, storedIndex)
-        : storedIndex;
-
-      const tried = new Set<number>();
+        ? getRandomWallpaperIndex(wallpaperNames.length, currentIndex)
+        : currentIndex;
       let resolvedUrl: string | undefined;
 
       for (let i = 0; i < wallpaperNames.length; i++) {
-        if (tried.has(resolvedIndex)) break;
-        tried.add(resolvedIndex);
         const url = await getWallpaperUrlByName(wallpaperNames[resolvedIndex]);
-        if (cancelled) return;
+        if (cancelled || request !== revision) return;
         if (url) {
           resolvedUrl = url;
           break;
@@ -106,26 +96,37 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
         resolvedIndex = (resolvedIndex + 1) % wallpaperNames.length;
       }
 
-      if (cancelled) return;
-
-      const nextLastChange = shouldRotate
-        ? new Date().toISOString()
-        : wallpaperState.lastWallpaperChange || new Date().toISOString();
-
-      localStorage.setItem(
-        'wallpaperState',
-        JSON.stringify({
-          lastWallpaperChange: nextLastChange,
-          currentIndex: resolvedIndex,
-        }),
-      );
-
+      if (cancelled || request !== revision) return;
+      const nextLastChange = shouldRotate || resolvedIndex !== currentIndex ? Date.now() : lastChange;
+      saveWallpaperState(wallpaperNames, resolvedIndex, nextLastChange);
       setImageUrl(resolvedUrl);
+      if (wallpaperNames.length > 1) {
+        timer = setTimeout(refresh, Math.max(1, nextLastChange + freqMs - Date.now()));
+      }
     };
-    updateWallpaper();
+    const refresh = () => {
+      void updateWallpaper().catch(error => console.error('Error updating wallpaper', error));
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === 'wallpaperState' || event.key === 'userWallpapers' || event.key === null) {
+        wallpaperUrlCache.clear();
+        refresh();
+      }
+    };
+    refresh();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('storage', onStorage);
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('storage', onStorage);
     };
   }, [wallpaperNames, wallpaperFrequency, wallpaperVersion]);
 

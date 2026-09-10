@@ -38,7 +38,7 @@ jobs:
           cache: 'npm'
 
       - name: Setup required tools
-        run: sudo apt-get install zip jq curl -y
+        run: sudo apt-get install zip unzip jq curl -y
 
       - name: Install JS dependencies
         run: npm ci
@@ -48,12 +48,12 @@ jobs:
           bash scripts/prepare_release.sh
           npm run build
 
-      - name: Prepare release
+      - name: Prepare Chrome Web Store package
         run: |
-          mkdir -p vision-start
-          mv dist vision-start/
-          mv extension vision-start/
-          mv manifest.json vision-start/
+          mkdir vision-start
+          cp -a dist/. vision-start/
+          cp -a extension vision-start/
+          cp manifest.json vision-start/
 
       - name: Set archive name
         id: set-archive
@@ -70,7 +70,38 @@ jobs:
       - name: Create zip archive
         run: |
           cd vision-start
-          zip -r "../${ARCHIVE_NAME}" *
+          zip -r -X "../${ARCHIVE_NAME}" .
+
+      - name: Validate Chrome Web Store archive
+        env:
+          RELEASE_TAG: ${{ gitea.ref_name }}
+        run: |
+          set -euo pipefail
+          unzip -t "$ARCHIVE_NAME"
+          PACKAGE_DIR=$(mktemp -d)
+          unzip -q "$ARCHIVE_NAME" -d "$PACKAGE_DIR"
+          node --input-type=module - "$PACKAGE_DIR" "${RELEASE_TAG#v}" <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync, statSync } from 'node:fs';
+          import { resolve, sep } from 'node:path';
+          const [directory, version] = process.argv.slice(2);
+          const manifest = JSON.parse(readFileSync(resolve(directory, 'manifest.json'), 'utf8'));
+          assert.equal(manifest.manifest_version, 3);
+          assert.equal(manifest.version, version);
+          assert.match(version, /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/);
+          const parts = version.split('.').map(Number);
+          assert(parts.every(part => part <= 65535) && parts.some(part => part > 0), 'Invalid Chrome extension version');
+          assert(typeof manifest.name === 'string' && manifest.name.length > 0);
+          assert(typeof manifest.description === 'string' && manifest.description.length <= 132);
+          assert.equal(manifest.chrome_url_overrides.newtab, 'index.html');
+          assert(manifest.icons['128'], 'Missing store icon');
+          for (const file of [manifest.chrome_url_overrides.newtab, ...Object.values(manifest.icons)]) {
+            const path = resolve(directory, file);
+            assert(path.startsWith(resolve(directory) + sep), `Invalid package path: ${file}`);
+            assert(statSync(path).isFile(), `Missing packaged file: ${file}`);
+          }
+          console.log('Chrome Web Store archive structure and manifest validated');
+          NODE
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3

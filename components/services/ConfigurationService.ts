@@ -205,14 +205,4 @@ export const ConfigurationService = {
       userWallpapers: Array.isArray(importedUserWallpapers) ? importedUserWallpapers : [],
     };
   },
-
-  resetWallpaperState(): void {
-    localStorage.setItem(
-      'wallpaperState',
-      JSON.stringify({
-        lastWallpaperChange: new Date().toISOString(),
-        currentIndex: 0,
-      }),
-    );
-  },
 };
