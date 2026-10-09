@@ -38,9 +38,10 @@ jobs:
       - name: Prepare archive
         run: |
           mkdir -p vision-start
-          mv dist vision-start/
-          mv extension vision-start/
-          mv manifest.json vision-start/
+          cp -a dist/. vision-start/
+          cp -a extension vision-start/
+          cp manifest.json vision-start/
+          test -f vision-start/index.html
 
       - name: Create zip archive
         run: |
@@ -80,9 +81,10 @@ jobs:
 
       - name: Unpack build artifact
         run: |
-          unzip -o -q ${{ env.ARCHIVE_NAME }}
-          if [ ! -d dist ]; then
-            echo "The build artifact does not contain dist/."
+          mkdir -p dist
+          unzip -o -q ${{ env.ARCHIVE_NAME }} -d dist
+          if [ ! -f dist/index.html ]; then
+            echo "The build artifact does not contain index.html at its root."
             unzip -l ${{ env.ARCHIVE_NAME }}
             exit 1
           fi
