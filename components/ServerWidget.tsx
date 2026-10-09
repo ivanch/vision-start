@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Server } from '../types';
-import ping from './utils/jsping.js';
+import ping from './utils/jsping';
 
 interface ServerWidgetProps {
   config: {
@@ -25,42 +25,58 @@ const ServerWidget: React.FC<ServerWidgetProps> = ({ config }) => {
   const serversRef = useRef(config.serverWidget.servers);
   serversRef.current = config.serverWidget.servers;
 
-  const serversSignature = config.serverWidget.servers
-    .map(s => `${s.id}:${s.address}`)
-    .join('|');
-  const serverCount = config.serverWidget.servers.length;
+  const serversSignature = JSON.stringify(config.serverWidget.servers.map(s => [s.id, s.address]));
 
   useEffect(() => {
-    if (!config.serverWidget.enabled) return;
+    if (!config.serverWidget.enabled || serversRef.current.length === 0) return;
 
-    const pingServers = () => {
-      const pending: Record<string, string> = {};
-      for (const s of serversRef.current) pending[s.id] = 'pending';
-      setServerStatus(prev => ({ ...prev, ...pending }));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let controller: AbortController | undefined;
+    let cancelled = false;
+    const frequency = Math.min(60, Math.max(5, config.serverWidget.pingFrequency || 15)) * 1000;
+    setServerStatus(Object.fromEntries(serversRef.current.map(server => [server.id, 'pending'])));
 
-      serversRef.current.forEach((server) => {
-        ping(server.address)
-          .then(() => {
-            setServerStatus(prev =>
-              prev[server.id] === 'online' ? prev : { ...prev, [server.id]: 'online' }
-            );
-          })
-          .catch(() => {
-            setServerStatus(prev =>
-              prev[server.id] === 'offline' ? prev : { ...prev, [server.id]: 'offline' }
-            );
-          });
-      });
+    const pingServers = async () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      const cycle = new AbortController();
+      controller = cycle;
+      const servers = serversRef.current;
+      const statuses: Record<string, string> = {};
+      let next = 0;
+      await Promise.all(Array.from({ length: Math.min(4, servers.length) }, async () => {
+        while (next < servers.length && !cycle.signal.aborted) {
+          const server = servers[next++];
+          try {
+            await ping(server.address, 1, cycle.signal);
+            statuses[server.id] = 'online';
+          } catch {
+            statuses[server.id] = 'offline';
+          }
+        }
+      }));
+      if (cancelled || cycle.signal.aborted) return;
+      setServerStatus(previous => servers.every(server => previous[server.id] === statuses[server.id])
+        ? previous : statuses);
+      timer = setTimeout(() => void pingServers(), frequency);
+    };
+    const onVisibilityChange = () => {
+      clearTimeout(timer);
+      controller?.abort();
+      if (document.visibilityState === 'visible') void pingServers();
     };
 
-    pingServers();
-    const interval = setInterval(pingServers, config.serverWidget.pingFrequency * 1000);
-    return () => clearInterval(interval);
+    void pingServers();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      controller?.abort();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [
     config.serverWidget.enabled,
     config.serverWidget.pingFrequency,
     serversSignature,
-    serverCount,
   ]);
 
   if (!config.serverWidget.enabled) {

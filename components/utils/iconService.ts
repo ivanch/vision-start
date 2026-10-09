@@ -7,15 +7,25 @@ import {
 
 const MAX_CACHED_ICON_BYTES = 256 * 1024;
 const MAX_RESOLVED_ICONS = 50;
+const MAX_RESOLVED_ICON_MEMORY = 2 * 1024 * 1024;
+const MAX_CONCURRENT_ICON_REQUESTS = 4;
+let resolvedIconBytes = 0;
+let activeIconRequests = 0;
+const iconRequestQueue: (() => void)[] = [];
 const resolvedIconCache = new Map<string, string>();
 const iconCacheLookups = new Map<string, Promise<string | null>>();
 const iconCacheRequests = new Map<string, Promise<string | null>>();
 
 const rememberResolvedIcon = (iconUrl: string, dataUrl: string): void => {
+  resolvedIconBytes -= (resolvedIconCache.get(iconUrl)?.length ?? 0) * 2;
+  resolvedIconCache.delete(iconUrl);
   resolvedIconCache.set(iconUrl, dataUrl);
-  if (resolvedIconCache.size > MAX_RESOLVED_ICONS) {
+  resolvedIconBytes += dataUrl.length * 2;
+  while (resolvedIconCache.size > MAX_RESOLVED_ICONS || resolvedIconBytes > MAX_RESOLVED_ICON_MEMORY) {
     const oldest = resolvedIconCache.keys().next().value;
-    if (oldest !== undefined) resolvedIconCache.delete(oldest);
+    if (oldest === undefined) break;
+    resolvedIconBytes -= (resolvedIconCache.get(oldest)?.length ?? 0) * 2;
+    resolvedIconCache.delete(oldest);
   }
 };
 
@@ -31,7 +41,33 @@ const isCacheableIconUrl = (value: string): boolean => {
 };
 
 const isValidCachedIcon = (value: string | null): value is string =>
-  typeof value === 'string' && isDataUrl(value);
+  typeof value === 'string' && value.startsWith('data:image/') && value.length <= Math.ceil(MAX_CACHED_ICON_BYTES * 4 / 3) + 256;
+
+const readIconBlob = async (response: Response): Promise<Blob | null> => {
+  const contentType = (response.headers.get('content-type') || '').split(';', 1)[0].trim().toLowerCase();
+  if (!contentType.startsWith('image/') || Number(response.headers.get('content-length')) > MAX_CACHED_ICON_BYTES || !response.body) {
+    await response.body?.cancel();
+    return null;
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > MAX_CACHED_ICON_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value as Uint8Array<ArrayBuffer>);
+    }
+    return bytes > 0 ? new Blob(chunks, { type: contentType }) : null;
+  } finally {
+    reader.releaseLock();
+  }
+};
 
 const blobToDataUrl = (blob: Blob): Promise<string> =>
   new Promise<string>((resolve, reject) => {
@@ -134,6 +170,7 @@ async function getCachedWebsiteIcon(iconUrl: string): Promise<string | null> {
         rememberResolvedIcon(iconUrl, cachedIcon);
         return cachedIcon;
       }
+      if (cachedIcon) void removeCachedIconFromChromeStorageLocal(iconUrl);
       return null;
     })
     .catch(() => null)
@@ -153,6 +190,7 @@ async function cacheWebsiteIcon(iconUrl: string): Promise<string | null> {
 
   const existingRequest = iconCacheRequests.get(iconUrl);
   if (existingRequest) return existingRequest;
+  if (iconCacheRequests.size >= MAX_RESOLVED_ICONS) return null;
 
   const request = (async () => {
     const cachedIcon = await getCachedWebsiteIcon(iconUrl);
@@ -161,18 +199,20 @@ async function cacheWebsiteIcon(iconUrl: string): Promise<string | null> {
     const fetchSource = getIconFetchSource(iconUrl);
     if (!fetchSource) return null;
 
+    if (activeIconRequests >= MAX_CONCURRENT_ICON_REQUESTS) {
+      await new Promise<void>(resolve => iconRequestQueue.push(resolve));
+    } else {
+      activeIconRequests++;
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
     try {
-      const response = await fetch(fetchSource);
+      const response = await fetch(fetchSource, { signal: controller.signal, credentials: 'omit' });
       if (!response.ok || response.type === 'opaque') return null;
 
-      const blob = await response.blob();
-      const contentType = (blob.type || response.headers.get('content-type') || '')
-        .split(';', 1)[0]
-        .trim()
-        .toLowerCase();
-      if (!contentType.startsWith('image/') || blob.size === 0 || blob.size > MAX_CACHED_ICON_BYTES) {
-        return null;
-      }
+      const blob = await readIconBlob(response);
+      if (!blob) return null;
 
       const dataUrl = await blobToDataUrl(blob);
       rememberResolvedIcon(iconUrl, dataUrl);
@@ -180,6 +220,12 @@ async function cacheWebsiteIcon(iconUrl: string): Promise<string | null> {
       return dataUrl;
     } catch {
       return null;
+    } finally {
+      clearTimeout(timeout);
+      controller.abort();
+      const nextRequest = iconRequestQueue.shift();
+      if (nextRequest) nextRequest();
+      else activeIconRequests--;
     }
   })().finally(() => {
     iconCacheRequests.delete(iconUrl);
@@ -190,6 +236,7 @@ async function cacheWebsiteIcon(iconUrl: string): Promise<string | null> {
 }
 
 async function removeCachedWebsiteIcon(iconUrl: string): Promise<void> {
+  resolvedIconBytes -= (resolvedIconCache.get(iconUrl)?.length ?? 0) * 2;
   resolvedIconCache.delete(iconUrl);
   iconCacheLookups.delete(iconUrl);
   await removeCachedIconFromChromeStorageLocal(iconUrl);

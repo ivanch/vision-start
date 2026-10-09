@@ -19,6 +19,12 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
   const [usingCachedIcon, setUsingCachedIcon] = useState(false);
 
   useEffect(() => {
+    const resetLoading = () => setIsLoading(false);
+    window.addEventListener('pageshow', resetLoading);
+    return () => window.removeEventListener('pageshow', resetLoading);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     setIconSource(null);
@@ -50,7 +56,10 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
   }, [website.icon]);
 
   const handleIconError = () => {
-    if (!usingCachedIcon) return;
+    if (!usingCachedIcon) {
+      setIconSource(null);
+      return;
+    }
     setIconSource(website.icon);
     setUsingCachedIcon(false);
     void removeCachedWebsiteIcon(website.icon);
@@ -61,11 +70,12 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
       e.preventDefault();
       return;
     }
-    setIsLoading(true);
+    if (!e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+      setIsLoading(true);
+    }
   };
 
-  const iconSizeClass = `w-[${getIconPixelSize(tileSize)}px] h-[${getIconPixelSize(tileSize)}px]`;
-  const iconSizeLoadingClass = `w-[${getIconLoadingPixelSize(tileSize)}px] h-[${getIconLoadingPixelSize(tileSize)}px]`;
+  const iconSize = isLoading ? getIconLoadingPixelSize(tileSize) : getIconPixelSize(tileSize);
 
   return (
     <div className={`relative ${getTileSizeClass(tileSize)} transition-all duration-200 ease-ios ${isEditing ? 'mb-4' : ''}`}>
@@ -86,14 +96,17 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
           </div>
         )}
         <div className={`relative z-10 flex items-center transition-all duration-200 ease-ios ${isLoading ? 'translate-y-5 gap-2' : 'flex-col gap-3'}`}>
-          <div className={`transition-all duration-200 ease-ios drop-shadow-[0_10px_20px_rgba(0,0,0,0.28)] ${isLoading ? iconSizeLoadingClass : iconSizeClass}`}>
-            {iconSource && (
+          <div className="flex items-center justify-center transition-all duration-200 ease-ios drop-shadow-[0_10px_20px_rgba(0,0,0,0.28)]" style={{ width: iconSize, height: iconSize }}>
+            {iconSource ? (
               <img
                 src={iconSource}
                 alt={`${website.name} icon`}
                 className="object-contain w-full h-full"
+                decoding="async"
                 onError={handleIconError}
               />
+            ) : (
+              <span className="text-2xl font-semibold text-slate-300" aria-hidden="true">{website.name.charAt(0).toUpperCase()}</span>
             )}
           </div>
           <span className={`max-w-full px-1 text-slate-50 font-semibold text-base text-center leading-tight transition-all duration-200 ease-ios [text-shadow:0_2px_12px_rgba(2,6,23,0.44)] ${isLoading ? 'text-sm' : ''}`}>

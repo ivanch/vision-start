@@ -14,19 +14,8 @@ interface WebsiteEditModalProps {
 interface IconMetadata {
   name: string;
   base: string;
-  aliases: string[];
-  categories: string[];
-  update: {
-    timestamp: string;
-    author: {
-      id: number;
-      name: string;
-    };
-  };
-  colors: any;
+  colors: string[];
 }
-
-let iconMetadataCache: IconMetadata[] | null = null;
 
 const getIconPickUrl = (iconData: IconMetadata): string =>
   `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/${iconData.base}/${iconData.name}.${iconData.base}`;
@@ -37,34 +26,45 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
   const [icon, setIcon] = useState(website ? website.icon : '');
   const [iconQuery, setIconQuery] = useState('');
   const [filteredIcons, setFilteredIcons] = useState<IconMetadata[]>([]);
-  const [iconMetadata, setIconMetadata] = useState<IconMetadata[]>(() => iconMetadataCache ?? []);
-  const [iconsFetched, setIconsFetched] = useState(() => iconMetadataCache !== null);
+  const [iconMetadata, setIconMetadata] = useState<IconMetadata[]>([]);
+  const metadataRequest = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
-      iconMetadataCache = null;
+      metadataRequest.current?.abort();
+      if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
     };
   }, []);
 
   const ensureIconMetadata = () => {
-    if (iconMetadataCache) {
-      setIconMetadata(iconMetadataCache);
-      return;
-    }
-    if (iconsFetched) return;
-    setIconsFetched(true);
-    fetch('/icon-metadata.json', { cache: 'force-cache' })
-      .then(response => response.json())
+    if (iconMetadata.length > 0 || metadataRequest.current) return;
+    const controller = new AbortController();
+    metadataRequest.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 10_000);
+    fetch(new URL('icon-metadata.json', document.baseURI).href, { cache: 'force-cache', signal: controller.signal })
+      .then(response => {
+        if (!response.ok) throw new Error('Icon metadata is unavailable');
+        return response.json();
+      })
       .then(data => {
-        const iconsArray: IconMetadata[] = Object.entries(data).map(([name, details]) => ({
-          name,
-          ...(details as object),
-        })) as IconMetadata[];
-        iconMetadataCache = iconsArray;
+        if (controller.signal.aborted) return;
+        if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid icon metadata');
+        const iconsArray: IconMetadata[] = Object.entries(data).flatMap(([name, details]) => {
+          if (!details || typeof details !== 'object' || !('base' in details) || typeof details.base !== 'string') return [];
+          const colors = 'colors' in details && details.colors && typeof details.colors === 'object'
+            ? Object.values(details.colors).filter((color): color is string => typeof color === 'string' && color !== name) : [];
+          return [{ name, base: details.base, colors }];
+        });
         setIconMetadata(iconsArray);
       })
-      .catch(err => console.error('Failed to load icon metadata', err));
+      .catch(err => {
+        if (!controller.signal.aborted) console.error('Failed to load icon metadata', err);
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+        if (metadataRequest.current === controller) metadataRequest.current = null;
+      });
   };
 
   useEffect(() => {
@@ -78,9 +78,8 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
             filtered.push(ic);
             if (filtered.length >= 50) break;
           }
-          if (ic.colors && typeof ic.colors === 'object') {
-            const colors = Object.values(ic.colors).filter(key => typeof key === 'string' && key !== ic.name);
-            for (const color of colors as string[]) {
+          if (ic.colors.length > 0) {
+            for (const color of ic.colors) {
               if (color.toLowerCase().includes(lowerCaseQuery)) {
                 filtered.push({ ...ic, name: color });
                 if (filtered.length >= 50) break;
@@ -161,6 +160,7 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
                   key={`${iconData.name}-${index}`}
                   onClick={() => {
                     setIcon(getIconPickUrl(iconData));
+                    setIconQuery('');
                     setFilteredIcons([]);
                   }}
                   className="cursor-pointer flex items-center p-2 transition-colors duration-150 ease-ios hover:bg-white/20"

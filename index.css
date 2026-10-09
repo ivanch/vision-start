@@ -56,7 +56,6 @@ body {
   background-size: cover;
   background-position: center;
   transform: scale(1.015);
-  will-change: filter, opacity, transform;
 }
 
 .wallpaper-luminance {
@@ -368,7 +367,6 @@ body {
     background 260ms var(--ease-ios),
     border-color 260ms var(--ease-ios),
     box-shadow 340ms var(--ease-liquid);
-  will-change: transform, box-shadow;
 }
 
 .liquid-tile:hover {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { Config, Wallpaper } from '../types';
 import { baseWallpapers } from './utils/baseWallpapers';
 import { checkChromeStorageLocalAvailable } from './utils/StorageLocalManager';
@@ -6,7 +6,7 @@ import { ConfigurationService } from './services/ConfigurationService';
 import GeneralTab from './configuration/GeneralTab';
 import ThemeTab from './configuration/ThemeTab';
 import ClockTab from './configuration/ClockTab';
-import ServerWidgetTab from './configuration/ServerWidgetTab';
+const ServerWidgetTab = lazy(() => import('./configuration/ServerWidgetTab'));
 
 interface ConfigurationModalProps {
   onClose: () => void;
@@ -30,6 +30,8 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const isSaving = useRef(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const wallpaperMutation = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     setChromeStorageAvailable(checkChromeStorageLocalAvailable());
@@ -43,8 +45,10 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
 
   useEffect(() => {
     return () => {
+      clearTimeout(closeTimer.current);
       if (!isSaving.current) {
-        onWallpaperChange({ currentWallpapers: currentConfig.currentWallpapers });
+        const availableNames = new Set([...baseWallpapers, ...ConfigurationService.loadUserWallpapers()].map(wallpaper => wallpaper.name));
+        onWallpaperChange({ currentWallpapers: currentConfig.currentWallpapers.filter(name => availableNames.has(name)) });
       }
     };
   }, []);
@@ -55,39 +59,49 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
 
   const handleClose = () => {
     setIsVisible(false);
-    setTimeout(onClose, 250);
+    clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(onClose, 250);
   };
 
   const handleConfigChange = (updates: Partial<Config>) => {
     setConfig((prev) => ({ ...prev, ...updates }));
   };
 
-  const handleAddWallpaperEntry = async (promise: Promise<Wallpaper>) => {
-    const newWallpaper = await promise;
-    const updated = [...userWallpapers, newWallpaper];
-    setUserWallpapers(updated);
+  const mutateWallpapers = (mutate: () => Promise<void>): Promise<void> => {
+    const operation = wallpaperMutation.current.then(mutate);
+    wallpaperMutation.current = operation.catch(() => {});
+    return operation;
+  };
+
+  const handleAddWallpaperEntry = (createWallpaper: () => Promise<Wallpaper>) => mutateWallpapers(async () => {
+    const newWallpaper = await createWallpaper();
+    const updated = [...ConfigurationService.loadUserWallpapers(), newWallpaper];
+    if (updated.slice(0, -1).some(wallpaper => wallpaper.name === newWallpaper.name)) {
+      throw new Error('A wallpaper with this name already exists. Please choose a different name.');
+    }
     ConfigurationService.saveUserWallpapers(updated);
+    setUserWallpapers(updated);
     setConfig((prev) => ({
       ...prev,
       currentWallpapers: [...prev.currentWallpapers, newWallpaper.name],
     }));
-  };
+  });
 
   const handleAddWallpaper = (name: string, url: string) =>
-    handleAddWallpaperEntry(ConfigurationService.addWallpaper(name, url));
+    handleAddWallpaperEntry(() => ConfigurationService.addWallpaper(name, url));
 
   const handleAddWallpaperFile = (file: File) =>
-    handleAddWallpaperEntry(ConfigurationService.addWallpaperFile(file));
+    handleAddWallpaperEntry(() => ConfigurationService.addWallpaperFile(file));
 
   const handleDeleteWallpaper = async (wallpaper: Wallpaper) => {
     try {
-      await ConfigurationService.deleteWallpaper(wallpaper);
-      const updated = userWallpapers.filter((w) => w.name !== wallpaper.name);
-      setUserWallpapers(updated);
-      ConfigurationService.saveUserWallpapers(updated);
-      const newCurrentWallpapers = config.currentWallpapers.filter((n) => n !== wallpaper.name);
-      setConfig((prev) => ({ ...prev, currentWallpapers: newCurrentWallpapers }));
-      onWallpaperChange({ currentWallpapers: newCurrentWallpapers });
+      await mutateWallpapers(async () => {
+        await ConfigurationService.deleteWallpaper(wallpaper);
+        const updated = ConfigurationService.loadUserWallpapers().filter((w) => w.name !== wallpaper.name);
+        ConfigurationService.saveUserWallpapers(updated);
+        setUserWallpapers(updated);
+        setConfig((prev) => ({ ...prev, currentWallpapers: prev.currentWallpapers.filter(name => name !== wallpaper.name) }));
+      });
     } catch (error) {
       alert('Error deleting wallpaper. Please try again.');
       console.error(error);
@@ -103,6 +117,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
       setConfig(importedConfig);
       setUserWallpapers(importedWallpapers);
       onWallpaperChange({ currentWallpapers: importedConfig.currentWallpapers || [] });
+      isSaving.current = true;
       onSave(importedConfig);
       alert('Configuration imported successfully. The page will reload to apply all data.');
       window.location.reload();
@@ -176,7 +191,9 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
             <ClockTab config={config} onChange={handleConfigChange} />
           )}
           {activeTab === 'serverWidget' && (
-            <ServerWidgetTab config={config} onChange={handleConfigChange} />
+            <Suspense fallback={null}>
+              <ServerWidgetTab config={config} onChange={handleConfigChange} />
+            </Suspense>
           )}
         </div>
 

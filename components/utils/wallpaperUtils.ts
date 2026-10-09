@@ -45,7 +45,11 @@ export const saveWallpaperState = (names: string[], currentIndex: number, lastCh
     currentName: names[currentIndex],
     lastWallpaperChange: new Date(lastChange).toISOString(),
   });
-  if (localStorage.getItem('wallpaperState') !== payload) {
-    localStorage.setItem('wallpaperState', payload);
+  try {
+    if (localStorage.getItem('wallpaperState') !== payload) {
+      localStorage.setItem('wallpaperState', payload);
+    }
+  } catch (error) {
+    console.error('Error saving wallpaper state', error);
   }
 };

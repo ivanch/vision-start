@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import ToggleSwitch from '../ToggleSwitch';
 import { Config, Server } from '../../types';
 import RangeSlider from './RangeSlider';
 import { TrashIcon } from '../icons';
+import { createId } from '../utils/idUtils';
 
 interface ServerWidgetTabProps {
   config: Config;
@@ -21,9 +22,9 @@ const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) =
   const handleAddServer = () => {
     if (newServerName.trim() === '' || newServerAddress.trim() === '') return;
     const newServer: Server = {
-      id: Date.now().toString(),
-      name: newServerName,
-      address: newServerAddress,
+      id: createId(),
+      name: newServerName.trim(),
+      address: newServerAddress.trim(),
     };
     updateServerWidget({ servers: [...config.serverWidget.servers, newServer] });
     setNewServerName('');
@@ -36,7 +37,7 @@ const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) =
     });
   };
 
-  const onDragEnd = (result: any) => {
+  const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const items = Array.from(config.serverWidget.servers);
     const [reorderedItem] = items.splice(result.source.index, 1);

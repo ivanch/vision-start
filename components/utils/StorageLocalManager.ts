@@ -142,7 +142,7 @@ export async function getWallpaperFromChromeStorageLocal(name: string): Promise<
   const result = await chromeLocalCall<StorageResult>((cb) =>
     window.chrome?.storage?.local?.get([name], cb),
   );
-  return result[name] || null;
+  return typeof result[name] === 'string' ? result[name] || null : null;
 }
 
 /**

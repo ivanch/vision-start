@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import ServerWidget from './components/ServerWidget';
-import { DEFAULT_CATEGORIES } from './constants';
 import { Category, Website, Config } from './types';
 import Header from './components/layout/Header';
 import EditButton from './components/layout/EditButton';
@@ -11,23 +10,14 @@ import { ConfigurationService } from './components/services/ConfigurationService
 import { getAlignmentClass } from './components/utils/styleUtils';
 import { getRandomWallpaperIndex, loadWallpaperState, saveWallpaperState } from './components/utils/wallpaperUtils';
 import { PlusIcon } from './components/icons';
+import { createId } from './components/utils/idUtils';
 
 const ConfigurationModal = lazy(() => import('./components/ConfigurationModal'));
 const WebsiteEditModal = lazy(() => import('./components/WebsiteEditModal'));
 const CategoryEditModal = lazy(() => import('./components/CategoryEditModal'));
 
 const App: React.FC = () => {
-  const [categories, setCategories] = useState<Category[]>(() => {
-    try {
-      const storedCategories = localStorage.getItem('categories');
-      if (storedCategories) {
-        return JSON.parse(storedCategories);
-      }
-    } catch (error) {
-      console.error('Error parsing categories from localStorage', error);
-    }
-    return DEFAULT_CATEGORIES;
-  });
+  const [categories, setCategories] = useState<Category[]>(() => ConfigurationService.loadCategories());
   const [isEditing, setIsEditing] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [editingWebsite, setEditingWebsite] = useState<Website | null>(null);
@@ -74,90 +64,87 @@ const App: React.FC = () => {
   const handleSaveWebsite = useCallback((website: Partial<Website>) => {
     if (editingWebsite) {
       const idToUpdate = website.id ?? editingWebsite.id;
-      const newCategories = categories.map(category => ({
+      setCategories(previous => previous.map(category => category.id === editingWebsite.categoryId ? {
         ...category,
         websites: category.websites.map(w =>
-          w.id === idToUpdate ? { ...w, ...website, id: idToUpdate } : w
+          w.id === idToUpdate ? { ...w, ...website, id: idToUpdate, categoryId: category.id } : w
         ),
-      }));
-      setCategories(newCategories);
+      } : category));
       setEditingWebsite(null);
     } else if (addingWebsite) {
       const newWebsite: Website = {
-        id: Date.now().toString(),
+        id: createId(),
         name: website.name || '',
         url: website.url || '',
         icon: website.icon || '',
         categoryId: addingWebsite.id,
       };
-      const newCategories = categories.map(category =>
+      setCategories(previous => previous.map(category =>
         category.id === addingWebsite.id
           ? { ...category, websites: [...category.websites, newWebsite] }
           : category
-      );
-      setCategories(newCategories);
+      ));
       setAddingWebsite(null);
     }
-  }, [editingWebsite, addingWebsite, categories]);
+  }, [editingWebsite, addingWebsite]);
 
   const handleSaveCategory = useCallback((name: string) => {
     if (editingCategory) {
-      const newCategories = categories.map(category =>
+      setCategories(previous => previous.map(category =>
         category.id === editingCategory.id ? { ...category, name } : category
-      );
-      setCategories(newCategories);
+      ));
     } else {
       const newCategory: Category = {
-        id: Date.now().toString(),
+        id: createId(),
         name,
         websites: [],
       };
-      setCategories([...categories, newCategory]);
+      setCategories(previous => [...previous, newCategory]);
     }
     setEditingCategory(null);
     setIsCategoryModalOpen(false);
-  }, [editingCategory, categories]);
+  }, [editingCategory]);
 
   const handleDeleteWebsite = useCallback(() => {
     if (!editingWebsite) return;
 
-    const newCategories = categories.map(category => ({
+    setCategories(previous => previous.map(category => category.id === editingWebsite.categoryId ? {
       ...category,
       websites: category.websites.filter(w => w.id !== editingWebsite.id),
-    }));
-    setCategories(newCategories);
+    } : category));
     setEditingWebsite(null);
-  }, [editingWebsite, categories]);
+  }, [editingWebsite]);
 
   const handleDeleteCategory = useCallback(() => {
     if (!editingCategory) return;
 
-    const newCategories = categories.filter(c => c.id !== editingCategory.id);
-    setCategories(newCategories);
+    setCategories(previous => previous.filter(c => c.id !== editingCategory.id));
     setEditingCategory(null);
     setIsCategoryModalOpen(false);
-  }, [editingCategory, categories]);
+  }, [editingCategory]);
 
   const handleMoveWebsite = useCallback((website: Website, direction: 'left' | 'right') => {
-    const categoryIndex = categories.findIndex(cat => cat.websites.some(w => w.id === website.id));
-    if (categoryIndex === -1) return;
+    setCategories(previous => {
+      const categoryIndex = previous.findIndex(cat => cat.id === website.categoryId);
+      if (categoryIndex === -1) return previous;
 
-    const category = categories[categoryIndex];
-    const websiteIndex = category.websites.findIndex(w => w.id === website.id);
-    if (websiteIndex === -1) return;
+      const category = previous[categoryIndex];
+      const websiteIndex = category.websites.findIndex(w => w.id === website.id);
+      if (websiteIndex === -1) return previous;
 
-    const targetIndex = direction === 'left' ? websiteIndex - 1 : websiteIndex + 1;
-    if (targetIndex < 0 || targetIndex >= category.websites.length) return;
+      const targetIndex = direction === 'left' ? websiteIndex - 1 : websiteIndex + 1;
+      if (targetIndex < 0 || targetIndex >= category.websites.length) return previous;
 
-    const newWebsites = [...category.websites];
-    const [movedWebsite] = newWebsites.splice(websiteIndex, 1);
-    newWebsites.splice(targetIndex, 0, movedWebsite);
+      const newWebsites = [...category.websites];
+      const [movedWebsite] = newWebsites.splice(websiteIndex, 1);
+      newWebsites.splice(targetIndex, 0, movedWebsite);
 
-    const newCategories = [...categories];
-    newCategories[categoryIndex] = { ...category, websites: newWebsites };
+      const newCategories = [...previous];
+      newCategories[categoryIndex] = { ...category, websites: newWebsites };
 
-    setCategories(newCategories);
-  }, [categories]);
+      return newCategories;
+    });
+  }, []);
 
   return (
     <main

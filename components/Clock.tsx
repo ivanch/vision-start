@@ -18,22 +18,23 @@ const Clock: React.FC<ClockProps> = ({ config }) => {
   useEffect(() => {
     if (!config.clock.enabled) return;
 
-    const scheduleNext = () => {
-      const now = new Date();
-      const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
-      timeoutId = window.setTimeout(() => {
-        setTime(new Date());
-        intervalId = window.setInterval(() => setTime(new Date()), 60_000);
-      }, msToNextMinute);
-    };
-
     let timeoutId = 0;
-    let intervalId = 0;
-    scheduleNext();
+    const refresh = () => {
+      window.clearTimeout(timeoutId);
+      if (document.visibilityState !== 'visible') return;
+      const now = new Date();
+      setTime(now);
+      const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+      timeoutId = window.setTimeout(refresh, msToNextMinute);
+    };
+    refresh();
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
 
     return () => {
-      if (timeoutId) window.clearTimeout(timeoutId);
-      if (intervalId) window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
     };
   }, [config.clock.enabled]);
 

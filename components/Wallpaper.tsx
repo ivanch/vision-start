@@ -3,6 +3,7 @@ import { baseWallpapers } from './utils/baseWallpapers';
 import { Wallpaper as WallpaperType } from '../types';
 import { getWallpaperFromChromeStorageLocal } from './utils/StorageLocalManager';
 import { getRandomWallpaperIndex, getWallpaperFrequencyMs, loadWallpaperState, saveWallpaperState } from './utils/wallpaperUtils';
+import { ConfigurationService } from './services/ConfigurationService';
 
 interface WallpaperProps {
   wallpaperNames: string[];
@@ -17,6 +18,7 @@ const MAX_WALLPAPER_URL_CACHE = 3;
 const wallpaperUrlCache = new Map<string, string | undefined>();
 
 const rememberWallpaperUrl = (name: string, resolved: string | undefined): void => {
+  if (resolved?.startsWith('data:')) return;
   wallpaperUrlCache.set(name, resolved);
   while (wallpaperUrlCache.size > MAX_WALLPAPER_URL_CACHE) {
     const oldest = wallpaperUrlCache.keys().next().value;
@@ -35,8 +37,7 @@ const getWallpaperUrlByName = async (name: string): Promise<string | undefined> 
     resolved = foundInBase.url || foundInBase.base64;
   } else {
     try {
-      const storedUserWallpapers: WallpaperType[] =
-        JSON.parse(localStorage.getItem('userWallpapers') || '[]');
+      const storedUserWallpapers = ConfigurationService.loadUserWallpapers();
       const foundInUser = storedUserWallpapers.find((w: WallpaperType) => w.name === name);
       if (foundInUser) {
         resolved = foundInUser.url || foundInUser.base64;
@@ -71,6 +72,7 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
     const updateWallpaper = async () => {
       const request = ++revision;
       clearTimeout(timer);
+      if (document.visibilityState !== 'visible') return;
       if (wallpaperNames.length === 0) {
         setImageUrl(undefined);
         saveWallpaperState([], 0, loadWallpaperState([]).lastChange);
@@ -109,6 +111,10 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') refresh();
+      else {
+        ++revision;
+        clearTimeout(timer);
+      }
     };
     const onStorage = (event: StorageEvent) => {
       if (event.key === 'wallpaperState' || event.key === 'userWallpapers' || event.key === null) {
@@ -124,6 +130,7 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      wallpaperUrlCache.clear();
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('focus', refresh);
       window.removeEventListener('storage', onStorage);
