@@ -1,9 +1,7 @@
+import { parseServerAddress } from './urlUtils';
+
 async function ping(url: string, multiplier = 1, signal?: AbortSignal): Promise<number> {
-    const address = url.trim();
-    const target = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(address) ? address : `http://${address}`);
-    if (target.protocol !== 'http:' && target.protocol !== 'https:') {
-        throw new Error('Server addresses must use HTTP or HTTPS.');
-    }
+    const target = parseServerAddress(url);
 
     const controller = new AbortController();
     const abort = () => controller.abort();

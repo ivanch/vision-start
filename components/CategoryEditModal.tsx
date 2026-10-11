@@ -18,7 +18,8 @@ const CategoryEditModal: React.FC<CategoryEditModalProps> = ({ category, edit, o
       title={edit ? 'Edit Category' : 'Add Category'}
       edit={edit}
       onClose={onClose}
-      onSave={() => onSave(name)}
+      onSave={() => onSave(name.trim())}
+      canSave={name.trim() !== ''}
       onDelete={edit ? onDelete : undefined}
     >
       <input

@@ -7,7 +7,7 @@ declare global {
       storage?: {
         local?: {
           set: (items: object, callback?: () => void) => void;
-          get: (keys: string[] | string, callback: (items: { [key: string]: string }) => void) => void;
+          get: (keys: string[] | string | null, callback: (items: { [key: string]: string }) => void) => void;
           remove: (keys: string | string[], callback?: () => void) => void;
         };
       };
@@ -94,6 +94,24 @@ export async function removeCachedIconFromChromeStorageLocal(sourceUrl: string):
   }
 }
 
+export async function pruneCachedIconsFromChromeStorageLocal(keepSourceUrls: string[]): Promise<number> {
+  if (!checkChromeStorageLocalAvailable()) return 0;
+  try {
+    const keep = new Set(keepSourceUrls.map(getIconCacheKey));
+    const items = await chromeLocalCall<StorageResult>((cb) =>
+      window.chrome?.storage?.local?.get(null, cb),
+    );
+    const stale = Object.keys(items).filter(key => key.startsWith(ICON_CACHE_KEY_PREFIX) && !keep.has(key));
+    if (stale.length === 0) return 0;
+    await chromeLocalCall<void>((cb) =>
+      window.chrome?.storage?.local?.remove(stale, cb),
+    );
+    return stale.length;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * Adds a new wallpaper to chrome.storage.local.
  * File uploads are stored as base64 while remote wallpapers remain URLs.
@@ -123,9 +141,16 @@ export async function addWallpaperToChromeStorageLocal(name: string, url: string
     finalName = finalName || getFileNameFromUrl(parsedUrl);
   }
 
-  await chromeLocalCall<void>((cb) =>
-    window.chrome?.storage?.local?.set({ [finalName]: url }, cb),
-  );
+  try {
+    await chromeLocalCall<void>((cb) =>
+      window.chrome?.storage?.local?.set({ [finalName]: url }, cb),
+    );
+  } catch (error) {
+    if (error instanceof Error && /quota/i.test(error.message)) {
+      throw new Error('Not enough extension storage for this wallpaper. Delete an uploaded wallpaper and try again.');
+    }
+    throw error;
+  }
   return finalName;
 }
 

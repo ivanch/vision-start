@@ -40,7 +40,6 @@ const ClockTab: React.FC<ClockTabProps> = ({ config, onChange }) => {
           onChange={(e) => updateClock({ font: e.target.value as string })}
           options={[
             { value: 'Helvetica', label: 'Helvetica' },
-            { value: `'Orbitron', sans-serif`, label: 'Orbitron' },
             { value: 'monospace', label: 'Monospace' },
             { value: 'cursive', label: 'Cursive' },
           ]}

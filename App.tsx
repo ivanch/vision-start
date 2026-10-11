@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import ServerWidget from './components/ServerWidget';
 import { Category, Website, Config } from './types';
 import Header from './components/layout/Header';
@@ -11,6 +11,7 @@ import { getAlignmentClass } from './components/utils/styleUtils';
 import { getRandomWallpaperIndex, loadWallpaperState, saveWallpaperState } from './components/utils/wallpaperUtils';
 import { PlusIcon } from './components/icons';
 import { createId } from './components/utils/idUtils';
+import { pruneCachedIconsFromChromeStorageLocal } from './components/utils/StorageLocalManager';
 
 const ConfigurationModal = lazy(() => import('./components/ConfigurationModal'));
 const WebsiteEditModal = lazy(() => import('./components/WebsiteEditModal'));
@@ -26,6 +27,16 @@ const App: React.FC = () => {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [config, setConfig] = useState<Config>(() => ConfigurationService.loadConfig());
   const [wallpaperVersion, setWallpaperVersion] = useState(0);
+  const categoriesRef = useRef(categories);
+  categoriesRef.current = categories;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const icons = categoriesRef.current.flatMap(category => category.websites.map(website => website.icon));
+      void pruneCachedIconsFromChromeStorageLocal(icons);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     ConfigurationService.saveConfig(config);
@@ -117,6 +128,8 @@ const App: React.FC = () => {
 
   const handleDeleteCategory = useCallback(() => {
     if (!editingCategory) return;
+    const websiteCount = editingCategory.websites.length;
+    if (websiteCount > 0 && !confirm(`Delete "${editingCategory.name}" and its ${websiteCount} ${websiteCount === 1 ? 'website' : 'websites'}?`)) return;
 
     setCategories(previous => previous.filter(c => c.id !== editingCategory.id));
     setEditingCategory(null);

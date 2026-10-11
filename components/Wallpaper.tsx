@@ -144,7 +144,7 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
       <div
         className="wallpaper-layer wallpaper-transition"
         style={{
-          backgroundImage: `url(${imageUrl})`,
+          backgroundImage: `url(${JSON.stringify(imageUrl)})`,
           filter: `blur(${blur}px) brightness(${brightness / 100})`,
           opacity: opacity / 100,
         }}

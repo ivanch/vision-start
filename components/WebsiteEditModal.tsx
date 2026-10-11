@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Website } from '../types';
 import { getWebsiteIcon } from './utils/iconService';
+import { normalizeWebsiteUrl } from './utils/urlUtils';
 import ModalShell from './ModalShell';
 
 interface WebsiteEditModalProps {
@@ -98,6 +99,15 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
     }
   }, [iconQuery, iconMetadata]);
 
+  const handleSave = () => {
+    const normalizedUrl = normalizeWebsiteUrl(url);
+    if (!normalizedUrl) {
+      alert('Please enter a valid website URL (http, https, ftp, or mailto).');
+      return;
+    }
+    onSave({ id: website?.id, name: name.trim(), url: normalizedUrl, icon });
+  };
+
   const fetchIcon = async () => {
     if (url) {
       const fetchedIcon = await getWebsiteIcon(url);
@@ -110,7 +120,8 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
       title={edit ? 'Edit Website' : 'Add Website'}
       edit={edit}
       onClose={onClose}
-      onSave={() => onSave({ id: website?.id, name, url, icon })}
+      onSave={handleSave}
+      canSave={name.trim() !== '' && url.trim() !== ''}
       onDelete={edit ? onDelete : undefined}
     >
       <div className="flex justify-center mb-4">

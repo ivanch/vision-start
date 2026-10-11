@@ -6,7 +6,10 @@ import {
   checkChromeStorageLocalAvailable,
   removeWallpaperFromChromeStorageLocal,
 } from '../utils/StorageLocalManager';
-import { getFileNameFromUrl } from '../utils/urlUtils';
+import { getFileNameFromUrl, normalizeWebsiteUrl } from '../utils/urlUtils';
+import { getWallpaperFrequencyHours } from '../utils/wallpaperUtils';
+
+export const CLOCK_FONTS = ['Helvetica', 'monospace', 'cursive'];
 
 const REQUIRED_LOCAL_STORAGE_KEYS = ['config', 'categories', 'userWallpapers', 'wallpaperState'] as const;
 type RequiredLocalStorageKey = typeof REQUIRED_LOCAL_STORAGE_KEYS[number];
@@ -14,7 +17,7 @@ type RequiredLocalStorageKey = typeof REQUIRED_LOCAL_STORAGE_KEYS[number];
 export const DEFAULT_CONFIG: Config = {
   title: 'Vision Start',
   currentWallpapers: ['Beach'],
-  wallpaperFrequency: '1d',
+  wallpaperFrequency: '24h',
   wallpaperBlur: 0,
   wallpaperBrightness: 108,
   wallpaperOpacity: 96,
@@ -78,6 +81,7 @@ const hasStrings = (value: unknown, keys: string[]): value is Record<string, str
 export const normalizeConfig = (stored: unknown): Config => {
   const config = deepMerge(DEFAULT_CONFIG, stored);
   config.currentWallpapers = [...new Set(config.currentWallpapers.filter(name => typeof name === 'string' && name.length > 0))];
+  config.wallpaperFrequency = `${getWallpaperFrequencyHours(config.wallpaperFrequency)}h`;
   config.wallpaperBlur = boundedNumber(config.wallpaperBlur, DEFAULT_CONFIG.wallpaperBlur, 0, 50);
   config.wallpaperBrightness = boundedNumber(config.wallpaperBrightness, DEFAULT_CONFIG.wallpaperBrightness, 0, 200);
   config.wallpaperOpacity = boundedNumber(config.wallpaperOpacity, DEFAULT_CONFIG.wallpaperOpacity, 1, 100);
@@ -86,6 +90,7 @@ export const normalizeConfig = (stored: unknown): Config => {
   config.alignment = choice(config.alignment, ['top', 'middle', 'bottom'], DEFAULT_CONFIG.alignment);
   config.horizontalAlignment = choice(config.horizontalAlignment, ['left', 'middle', 'right'], DEFAULT_CONFIG.horizontalAlignment);
   config.clock.size = choice(config.clock.size, ['tiny', 'small', 'medium', 'large'], DEFAULT_CONFIG.clock.size);
+  config.clock.font = choice(config.clock.font, CLOCK_FONTS, DEFAULT_CONFIG.clock.font);
   config.clock.format = choice(config.clock.format, ['HH:mm', 'h:mm A'], DEFAULT_CONFIG.clock.format);
   config.serverWidget.pingFrequency = boundedNumber(config.serverWidget.pingFrequency, DEFAULT_CONFIG.serverWidget.pingFrequency, 5, 60);
   const serverIds = new Set<string>();
@@ -110,8 +115,10 @@ export const normalizeCategories = (stored: unknown): Category[] => {
       name: category.name,
       websites: websites.flatMap(website => {
         if (!hasStrings(website, ['id', 'name', 'url']) || !website.id || websiteIds.has(website.id)) return [];
+        const url = normalizeWebsiteUrl(website.url);
+        if (!url) return [];
         websiteIds.add(website.id);
-        return [{ id: website.id, name: website.name, url: website.url, icon: typeof website.icon === 'string' ? website.icon : '', categoryId: category.id }];
+        return [{ id: website.id, name: website.name, url, icon: typeof website.icon === 'string' ? website.icon : '', categoryId: category.id }];
       }),
     }];
   });

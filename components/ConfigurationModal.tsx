@@ -63,6 +63,17 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
     closeTimer.current = setTimeout(onClose, 250);
   };
 
+  const handleCloseRef = useRef(handleClose);
+  handleCloseRef.current = handleClose;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleCloseRef.current();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleConfigChange = (updates: Partial<Config>) => {
     setConfig((prev) => ({ ...prev, ...updates }));
   };
@@ -139,7 +150,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="configuration-title">
       <div
         className={`liquid-modal-backdrop fixed inset-0 transition-opacity duration-200 ease-ios ${
           isVisible ? 'opacity-100' : 'opacity-0'
@@ -153,7 +164,7 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
         }`}
       >
         <div className="p-6 sm:p-8 flex-grow overflow-y-auto">
-          <h2 className="liquid-title-text text-3xl font-extrabold mb-6">Configuration</h2>
+          <h2 id="configuration-title" className="liquid-title-text text-3xl font-extrabold mb-6">Configuration</h2>
 
           <div className="liquid-surface grid grid-cols-2 sm:grid-cols-4 gap-1 rounded-2xl p-1 mb-7">
             {tabs.map((tab) => (

@@ -121,7 +121,10 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
             >
               <span className="truncate">{wallpaper.name}</span>
               <button
-                onClick={() => onDeleteWallpaper(wallpaper)}
+                onClick={() => {
+                  if (!wallpaper.url && !confirm(`Delete "${wallpaper.name}"? Uploaded wallpapers are not included in exports and cannot be recovered.`)) return;
+                  void onDeleteWallpaper(wallpaper);
+                }}
                 className="liquid-edit-action liquid-focus text-red-300 hover:text-red-100"
                 aria-label={`Delete ${wallpaper.name}`}
               >

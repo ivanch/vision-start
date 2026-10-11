@@ -97,8 +97,8 @@ A "feature" in this project typically means: a new widget, a new settings option
 - **Runtime note:** Preact is the actual runtime (`@preact/preset-vite`), but types and imports use `react`/`@types/react`. Do not introduce React-only APIs without verifying Preact compatibility.
 - **Path alias:** `@/*` maps to the project root (see `tsconfig.json` `paths`). Source files currently use relative imports (`./`, `../`) — match the surrounding file.
 - **No comments** in committed code unless explicitly requested.
-- **Build vs. dev:** Prefer verifying with `npm run build` rather than `npm run dev`. The only npm scripts are `dev`, `build`, `preview`.
-- **No lint/typecheck script is configured.** Verify TS correctness manually (e.g. `npx tsc --noEmit`), and confirm `npm run build` succeeds before considering a task complete.
+- **Build vs. dev:** Prefer verifying with `npm run build` rather than `npm run dev`. npm scripts: `dev`, `build`, `preview`, `typecheck`, `test`, `capture:screenshots`.
+- **Verification:** run `npm run typecheck` and `npm run build`, then `npm test` (Playwright regression suite; needs `npx playwright install chromium`) before considering a task complete. CI runs the type check on PRs and pushes to `main`.
 - **Don't touch `public/icon-metadata.json`** — it's gitignored and fetched at release-build time by `scripts/prepare_release.sh`. Don't commit a local copy.
 - **Don't reintroduce dead code:** `components/EditModal.tsx` imports `lucide-react` and `./IconPicker`, neither of which is a dependency. It is not wired into the app. Use `WebsiteEditModal.tsx` / `CategoryEditModal.tsx` instead, and add the icon picker inline (as in `WebsiteEditModal.tsx`) rather than reviving `IconPicker`.
 - **External asset URLs:** any new icons/css/JS pulled from CDNs (e.g. `cdn.jsdelivr.net`) must work offline-or-not without crashing — always provide a fallback (see how `iconService.ts` falls back to Google's S2 favicon service).

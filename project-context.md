@@ -1,9 +1,3 @@
----
-project_name: Vision Start
-date: 2026-10-09
-type: general_overview
----
-
 # Vision Start — Project Context
 
 A general, non-normative overview of the **Vision Start** project: what it is, how it's structured, what features it offers, and which files do what. This document is intended as a map for humans and AI agents to orient themselves in the codebase. It deliberately avoids coding-style prescriptive rules.
@@ -52,7 +46,7 @@ The startpage is composed of widgets and a configuration panel:
 
 - **Website Tiles** — Bookmarks organized into categories. Each tile shows an icon + name and opens the configured URL. Tiles can be added, edited, deleted, and moved left/right within their own category (reordering) while in edit mode.
 - **Categories** — Groupings of website tiles (e.g. "Search"). Add/edit/delete/name.
-- **Clock** — Optional header clock with selectable size, font, and 12h/24h format.
+- **Clock** — Optional header clock with selectable size, font (Helvetica, Monospace, Cursive — system fonts only, nothing is downloaded), and 12h/24h format.
 - **Title** — Optional big header title (text + size configurable).
 - **Server Status Widget** — Bottom-center glass pill that periodically "pings" configured server addresses and shows online/offline indicators. Probes use cancellable, credential-free HTTP HEAD requests with a 5s timeout. Online means the browser received a response; cross-origin HTTP status codes are opaque, so this is reachability rather than an HTTP health check. Network failures, timeouts, and browser-blocked requests appear offline.
 - **Wallpaper background** — Fullscreen background image with adjustable blur, brightness, and opacity, rendered behind a soft readability layer for the liquid-glass UI. Randomly rotates through multiple wallpapers at an hourly cadence selected by slider (`1h`–`48h`).
@@ -60,7 +54,7 @@ The startpage is composed of widgets and a configuration panel:
   - User wallpapers: upload from a file (≤4MB, ≤4.5MB base64) or add by URL. Remote URLs remain lightweight entries in the `userWallpapers` index; uploaded image data is stored in `chrome.storage.local` when available.
 - **Icon library, auto-fetch & cache** — Website icons can be picked from the [Dashboard Icons](https://dashboardicons.com/) library (metadata pre-downloaded to `public/icon-metadata.json`) or auto-fetched for trusted public TLDs as a Google S2 favicon URL derived from the site's hostname (no HTML fetching — the S2 URL is used purely as an `<img>` source). Non-trusted TLDs (e.g. local TLDs, IP addresses) fetch `${origin}/favicon.ico` directly. Tiles opportunistically cache CORS-readable icon responses as data URLs in `chrome.storage.local` and retain the original URL when caching is unavailable. Cache population fetches trusted TLDs through a CORS-open favicon service (`icon.horse`) because Google's S2 endpoint 301-redirects without `Access-Control-Allow-Origin`, which would block cross-origin `fetch`.
 - **Configuration panel** — Slide-in right-side modal with four tabs: General, Theme, Clock, Server Widget. Includes **Export** (downloads a JSON bundle of selected `localStorage` keys) and **Import** (restores from JSON and reloads the page).
-- **Edit mode** — Toggle via the top-left pencil button; reveals per-tile glass action toolbars, per-category edit buttons, and ghost glass "add" tiles.
+- **Edit mode** — Toggle via the top-left pencil button; reveals per-tile glass action toolbars, per-category edit buttons, and ghost glass "add" tiles. Add/edit modals disable Save until required fields are filled, and website URLs without a scheme get `https://` (only `http`, `https`, `ftp`, `mailto` are accepted). Deleting a category that has websites, or an uploaded wallpaper, asks for confirmation first. All modals close with Escape.
 - **Liquid glass design language** — Soft translucent surfaces, restrained edge highlights, moderate backdrop blur, soft shadows, cyan focus states, and iOS-like easing tokens (`ease-ios`, `ease-spring`, `ease-liquid`) defined in `index.css`.
 
 Performance notes:
@@ -68,7 +62,7 @@ Performance notes:
 - Modals (`ConfigurationModal`, `WebsiteEditModal`, `CategoryEditModal`) are code-split via `React.lazy` + `Suspense` and only loaded when opened. `ServerWidgetTab` is independently lazy-loaded, so its `@hello-pangea/dnd` dependency is loaded only when the Server Widget settings tab is selected. `WebsiteEditModal` and `CategoryEditModal` share a common `ModalShell` component.
 - `WebsiteTile` and `CategoryGroup` are wrapped in `React.memo`; `App.tsx` handlers are `useCallback`-stabilized and pure alignment helpers are hoisted to module scope, so opening a modal / toggling edit no longer re-renders every tile.
 - `Clock` schedules one timeout for the next minute boundary, pauses while hidden, and refreshes immediately on focus or visibility return.
-- `jsping` uses HTTP HEAD without downloading or decoding probe images, propagates failures, and cleans up its timeout and abort listener.
+- `jsping` parses addresses with the shared `parseServerAddress` (also used to validate new servers in the settings tab), uses HTTP HEAD without downloading or decoding probe images, propagates failures, and cleans up its timeout and abort listener.
 - `ServerWidget` runs at most four probes concurrently, batches completed results into one state update, avoids overlapping polling cycles, cancels work when hidden or unmounted, and depends on a stable ids/addresses signature. Hidden tabs stop polling and refresh on visibility return; removed servers leave no retained status entries.
 - Icon metadata (`/icon-metadata.json`) is fetched lazily on first focus of the icon field with `cache: 'force-cache'`, filter debounced ~150ms, and color variants are expanded lazily during filtering rather than upfront. Only names, file formats, and color variants are retained in component state; requests are aborted on close, failed loads can retry, and metadata URLs resolve relative to the page so subdirectory deployments work (the browser HTTP cache makes reopening cheap), and the dashboard-icon URL for a picker entry is derived from one shared helper.
 - `Wallpaper` resolves remote wallpaper URLs through a module-level `Map` bounded to the last 3 entries. Uploaded data URLs are excluded from that cache, and the cache clears on unmount; its image transition and readability overlay classes live in `index.css`. Wallpaper rotation and frequency parsing (`h`/`d` → hours/ms) share helpers with the Theme tab via `components/utils/wallpaperUtils.ts`.
@@ -132,7 +126,7 @@ vision-start/
 │       ├── idUtils.ts               # Shared UUID generation with an ordinary-HTTP fallback
 │       ├── styleUtils.ts            # Shared tile/clock/title size classes, icon pixel sizes, alignment classes, size presets
 │       ├── wallpaperUtils.ts        # Wallpaper frequency parsing (h/d → hours/ms) and random-index helpers
-│       └── urlUtils.ts              # URL → filename extraction (shared by wallpaper storage paths)
+│       └── urlUtils.ts              # URL → filename extraction, website URL normalization (scheme allow-list), server address parsing
 │
 ├── public/
 │   ├── favicon.ico
@@ -143,7 +137,7 @@ vision-start/
 │   ├── check_regressions.mjs    # Persistence/network regressions, browser memory checks, unpacked-extension smoke test
 │   ├── capture_screenshots.mjs  # Loads demoData, captures home/edit/configuration with Playwright, and can target a deployed URL
 │   ├── demoData.json            # Base64-encoded localStorage fixture used for release screenshots
-│   ├── prepare_release.sh        # Downloads icon-metadata.json from homarr-labs/dashboard-icons
+│   ├── prepare_release.sh        # Downloads icon-metadata.json from homarr-labs/dashboard-icons (fails the build on download errors)
 │   └── check_virustotal.sh       # Uploads the release zip to VirusTotal, waits for & reports the verdict
 │
 ├── .gitea/workflows/
@@ -159,7 +153,7 @@ vision-start/
 ├── tailwind.config.js            # Content globs + legacy pixel-size safelist
 ├── tsconfig.json                 # Strict TS, bundler resolution, `@/*` path alias to project root
 ├── vite.config.ts                # preact + tailwindcss plugins; single-bundle output; base './'
-├── package.json                  # Scripts: dev, build, preview
+├── package.json                  # Scripts: dev, build, preview, typecheck, test, capture:screenshots
 ├── README.md                     # Public-facing readme + feature list + roadmap
 └── .env.local                    # Local env (not tracked in context here)
 ```
@@ -178,7 +172,7 @@ The shape of all persisted data lives in `types.ts`:
 - **`Wallpaper`** — `name`, optional `url` or `base64`
 - **`Config`** — Everything else: title, wallpaper list + hourly frequency/blur/brightness/opacity, titleSize, vertical & horizontal alignment, tileSize, `clock {enabled, size, font, format}`, `serverWidget {enabled, pingFrequency, servers}`
 
-`ConfigurationService` (`components/services/ConfigurationService.ts`) is the source of truth for default config and persistence helpers. Config loaded from `localStorage` (and imported from export files) is run through `normalizeConfig()`, a schema-driven deep merge against `DEFAULT_CONFIG`: nested blocks (`clock`, `serverWidget`) inherit new sub-fields added to defaults, stored values with the wrong type fall back to defaults, and keys absent from the default schema are pruned. Nested defaults are cloned, option values and numeric ranges are validated, and malformed wallpaper/server entries are filtered. Categories and the user wallpaper index are normalized before rendering; website category IDs are repaired to match their containing category. The merge is self-healing — `App.tsx`'s persist-`useEffect` writes the normalized shape back to `localStorage` on first run.
+`ConfigurationService` (`components/services/ConfigurationService.ts`) is the source of truth for default config and persistence helpers. Config loaded from `localStorage` (and imported from export files) is run through `normalizeConfig()`, a schema-driven deep merge against `DEFAULT_CONFIG`: nested blocks (`clock`, `serverWidget`) inherit new sub-fields added to defaults, stored values with the wrong type fall back to defaults, and keys absent from the default schema are pruned. Nested defaults are cloned, option values (including `clock.font`) and numeric ranges are validated, `wallpaperFrequency` is rewritten to the canonical `<hours>h` form (default `24h`; legacy `1d`/`2d` convert), and malformed wallpaper/server entries are filtered. Categories and the user wallpaper index are normalized before rendering; website URLs go through `normalizeWebsiteUrl` (bare hosts get `https://`, disallowed schemes such as `javascript:` drop the website), and website category IDs are repaired to match their containing category. The merge is self-healing — `App.tsx`'s persist-`useEffect` writes the normalized shape back to `localStorage` on first run.
 
 Storage layout (browser-side):
 
@@ -189,7 +183,7 @@ Storage layout (browser-side):
 | `userWallpapers` | `localStorage` | `Wallpaper[]` index (names plus URLs for remote wallpapers) |
 | `wallpaperState` | `localStorage` | `{ lastWallpaperChange, currentIndex, currentName? }` for rotation (legacy index-only state remains supported) |
 | `<wallpaperName>` | `chrome.storage.local` (when available) | Base64 image data for uploaded wallpaper files and legacy URL wallpapers |
-| `vision-start:icon:<encoded-source-url>` | `chrome.storage.local` (when available) | CORS-readable website icon data URL, capped at 256KiB |
+| `vision-start:icon:<encoded-source-url>` | `chrome.storage.local` (when available) | CORS-readable website icon data URL, capped at 256KiB; entries no tile references are pruned ~5s after startup |
 
 Export/import bundles keys: `config`, `categories`, `userWallpapers`, `wallpaperState`. Remote wallpaper URLs are included through `userWallpapers`; uploaded image data and rebuildable icon cache entries are not included.
 
@@ -217,16 +211,16 @@ Export/import bundles keys: `config`, `categories`, `userWallpapers`, `wallpaper
 ### Local development / preview
 ```bash
 npm install
-npm run dev       # Vite dev server (note: PROJECT.md says prefer `npm run build` for real testing)
+npm run dev       # Vite dev server (note: AGENTS.md says prefer `npm run build` for real testing)
 npm run build     # Production build → dist/
 npm run preview   # Serve built dist/
-npx tsc --noEmit  # Strict TypeScript check
+npm run typecheck # Strict TypeScript check (tsc --noEmit)
 npx playwright install chromium
-node scripts/check_regressions.mjs # Run after building; isolated fixtures and temporary extension profile
+npm test          # scripts/check_regressions.mjs; run after building; isolated fixtures and temporary extension profile
 npm audit         # Audit the locked dependency tree
 ```
 
-The regression script covers malformed persisted data, partial/legacy imports and quota rollback, wallpaper validation, server probe failure/timeout/cancellation, icon request concurrency/stream limits/cache eviction, hidden-tab clock and polling behavior, modal request cancellation and retained JS heap after repeated picker cycles, lazy settings chunks, and loading an unpacked Manifest V3 extension in an isolated Chromium profile. It uses existing Vite/Playwright dependencies and does not modify the normal browser profile or shipped metadata.
+The regression script covers malformed persisted data, website URL/clock font/wallpaper frequency normalization, icon cache pruning, partial/legacy imports and quota rollback, wallpaper validation, server probe failure/timeout/cancellation, icon request concurrency/stream limits/cache eviction, hidden-tab clock and polling behavior, modal request cancellation and retained JS heap after repeated picker cycles, lazy settings chunks, and loading an unpacked Manifest V3 extension in an isolated Chromium profile. It uses existing Vite/Playwright dependencies and does not modify the normal browser profile or shipped metadata.
 
 ### Chrome extension install (manual)
 Build, then combine `dist/` + `manifest.json` into a folder and "Load unpacked" from `chrome://extensions`. The release workflow automates this zip.
@@ -238,7 +232,7 @@ Build, then combine `dist/` + `manifest.json` into a folder and "Load unpacked" 
 - `release.yaml` validates each `vX.Y.Z` tag and stamps the version into `manifest.json` (`"version": "0.0.0"` → the tag) in each build checkout before producing the extension archive and production image. The release ZIP contains the contents of `dist/` at its root alongside `manifest.json` and `extension/icons/`, so the manifest's `index.html` new-tab path resolves directly. Before upload, the workflow tests ZIP integrity, extracts it, and validates the manifest version (no leading zeros, components at most 65535, not all zero), metadata, new-tab page, and icon paths. This is the Chrome Web Store upload ZIP; screenshots remain separate release assets.
 - **`pull-request.yaml`** — Triggers on pull request open, reopen, and synchronization. It builds and uploads a PR extension archive with `dist/` contents, `manifest.json`, and `extension/` at its root, then unpacks that archive into `dist/` in a separate Playwright job to generate the three demo screenshots, and uploads both artifacts (screenshots are retained for 30 days). For same-repository PRs, it maintains one Gitea PR comment with inline image attachments; fork PRs retain artifacts but skip the comment because their workflow token is read-only.
 - After `deploy_vision_start` succeeds, `release.yaml` uses Playwright Chromium against the deployed production page and seeds each browser context from `scripts/demoData.json`. It regenerates `home.png`, `editing.png`, and `configuration.png` at exactly 1280×800, uploads them as artifacts (retained for 30 days), and attaches them as individual Gitea release assets.
-- **`main.yaml`** — Triggers on push to `main` (and `workflow_dispatch`). Builds, pushes a `staging` multi-arch (amd64/arm64) image to `git.ivanch.me/ivanch/vision-start:staging`, then SSH-deploys on the staging host via `docker compose up -d --force-recreate`.
+- **`main.yaml`** — Triggers on push to `main` (and `workflow_dispatch`). Type-checks (`npm run typecheck`, also run by `pull-request.yaml`), builds, pushes a `staging` multi-arch (amd64/arm64) image to `git.ivanch.me/ivanch/vision-start:staging`, then SSH-deploys on the staging host via `docker compose up -d --force-recreate`.
 - **`release.yaml`** — Triggers on `v*` tags. Builds, zips `dist/` + `manifest.json` as `vision-start-<tag>.zip`, runs `scripts/check_virustotal.sh` against it (publishes analysis URL + detection ratio on the release body), creates a Gitea release, pushes a `latest` multi-arch image, and SSH-deploys to production.
 
 Required CI secrets (referenced by the workflows): `REGISTRY_PASSWORD`, `HOST`, `USERNAME`, `KEY`, `PORT`, `STAGING_DIR`, `PROD_DIR`, `VIRUSTOTAL_APIKEY`.
@@ -254,13 +248,13 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 - **`@hello-pangea/dnd`** is used only in `ServerWidgetTab.tsx` (server reorder), which is independently lazy-loaded by `ConfigurationModal`, so opening General/Theme/Clock settings does not load the drag-and-drop chunk. `WebsiteTile` moves tiles within their own category via simple left/right buttons (no cross-category movement), not drag-and-drop.
 - **Import validation** accepts both export bundles and legacy objects containing serialized storage values. Files larger than 10MB are rejected before reading. Required keys are normalized and validated before writes; storage failures clear affected keys before restoring previous values so rollback also works near the quota limit. Omitted keys retain their existing settings. Importing marks the settings drawer as saved, preventing its cancel cleanup from restoring pre-import wallpapers.
 - **Wallpaper mutations** reject duplicate/built-in/reserved names and non-image file uploads. The settings drawer serializes wallpaper mutations and reads the latest persisted index, only updates its list after persistence succeeds, and cancel does not reselect deleted wallpapers.
-- **Chrome storage is optional.** `StorageLocalManager` checks availability once (`checkChromeStorageLocalAvailable`) and caches it. Remote wallpaper URLs work without it because their URLs live in `userWallpapers`; file upload is gated off when unavailable, and `addWallpaperToChromeStorageLocal` throws if called without it.
+- **Chrome storage is optional.** `StorageLocalManager` checks availability once (`checkChromeStorageLocalAvailable`) and caches it. Remote wallpaper URLs work without it because their URLs live in `userWallpapers`; file upload is gated off when unavailable, and `addWallpaperToChromeStorageLocal` throws if called without it. The extension uses the default ~10MB `chrome.storage.local` quota (no `unlimitedStorage`); quota failures on upload show a friendly "not enough extension storage" message.
 - **Wallpaper rotation** uses a timeout scheduled from the persisted last-change timestamp, with checks on mount, focus, and return to a visible tab. Overdue backgrounds rotate once and start a new interval; frequency changes use elapsed time rather than restarting the countdown. Frequency is clamped to 1–48 hours and legacy `1d`/`2d` values remain supported. Invalid or future timestamps recover to the current time. State tracks the wallpaper name as well as its legacy index so reordering or shrinking the selection preserves the current wallpaper when possible. Missing data is skipped and an empty selection hides the background. Manual random changes exclude the current wallpaper and restart the interval. Opening settings does not reset rotation. Wallpaper state writes skip identical serialized values, and empty selections preserve the saved timestamp during refreshes to prevent repeated cross-tab updates. Storage events synchronize wallpaper changes across tabs; outdated asynchronous resolutions are discarded. URL caches are cleared when wallpaper inputs or stored wallpaper data change.
 - **Icon picker** in `WebsiteEditModal` loads page-relative `icon-metadata.json` on focus, validates the response, and lazily expands color variants into up to 50 searchable results. Closing it cancels metadata fetching and filtering timers.
 - **Website icon cache** is persistent only in `chrome.storage.local`; it is rebuilt from website icon URLs after configuration import. Only `image/*` responses no larger than 256KiB are cached. Trusted public TLDs use Google S2 and the CORS-open `icon.horse` service for favicon caching, while non-trusted TLDs (local TLDs, IP addresses, custom domains) fetch `${origin}/favicon.ico` directly. No site HTML is ever fetched for icon discovery.
 - **`tsconfig.json` does not emit JS** (`noEmit: true`, bundler resolution); Vite handles all transpilation.
 - **Tile/icon sizing** uses static tile classes and numeric inline icon dimensions. The legacy pixel-size safelist remains in `tailwind.config.js`, but tile icons no longer depend on it.
-- **Project guidance note** in `PROJECT.md`: do not use `npm run dev` for real verification — use `npm run build`.
+- **Project guidance note** in `AGENTS.md`: do not use `npm run dev` for real verification — use `npm run build`.
 - **`.claude/` and `.env.local`** are local-only / gitignored; not part of shipped artifacts.
 
 ---
@@ -282,10 +276,11 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 | Website icon cache | `components/utils/iconService.ts`, `components/WebsiteTile.tsx`, `components/utils/StorageLocalManager.ts` |
 | Regression and memory checks | `scripts/check_regressions.mjs` (run after `npm run build`) |
 | Shared IDs | `components/utils/idUtils.ts` |
+| URL validation (websites, server addresses) | `components/utils/urlUtils.ts` (`normalizeWebsiteUrl`, `parseServerAddress`) |
 | Export/import config | `components/services/ConfigurationService.ts` (`exportConfig`, `importConfig`) |
 | Build/release/PR pipelines | `scripts/prepare_release.sh`, `scripts/capture_screenshots.mjs`, `scripts/check_virustotal.sh`, `.gitea/workflows/pull-request.yaml`, `.gitea/workflows/release.yaml` |
 | Docker build | `Dockerfile` |
 
 ---
 
-_Last updated: 2026-10-09. Generated as a general project overview; not a coding-style guide._
+_Last updated: 2026-10-10. Generated as a general project overview; not a coding-style guide._

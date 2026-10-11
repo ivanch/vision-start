@@ -5,6 +5,7 @@ import { Config, Server } from '../../types';
 import RangeSlider from './RangeSlider';
 import { TrashIcon } from '../icons';
 import { createId } from '../utils/idUtils';
+import { parseServerAddress } from '../utils/urlUtils';
 
 interface ServerWidgetTabProps {
   config: Config;
@@ -21,6 +22,12 @@ const ServerWidgetTab: React.FC<ServerWidgetTabProps> = ({ config, onChange }) =
 
   const handleAddServer = () => {
     if (newServerName.trim() === '' || newServerAddress.trim() === '') return;
+    try {
+      parseServerAddress(newServerAddress);
+    } catch (error) {
+      alert(error instanceof Error && error.message.startsWith('Server') ? error.message : 'Please enter a valid server address, e.g. 192.168.1.10:8080 or https://example.com.');
+      return;
+    }
     const newServer: Server = {
       id: createId(),
       name: newServerName.trim(),
