@@ -42,13 +42,13 @@ globalThis.localStorage = {
 globalThis.window = { chrome: { storage: { local: {
   get: (keys, callback) => {
     chromeReads++;
-    callback(Object.fromEntries(keys.map(key => [key, chromeStorage.get(key)])));
+    callback(keys === null ? Object.fromEntries(chromeStorage) : Object.fromEntries(keys.map(key => [key, chromeStorage.get(key)])));
   },
   set: (values, callback) => {
     Object.entries(values).forEach(([key, value]) => chromeStorage.set(key, value));
     callback();
   },
-  remove: (key, callback) => { chromeStorage.delete(key); callback(); },
+  remove: (keys, callback) => { [keys].flat().forEach(key => chromeStorage.delete(key)); callback(); },
 } } } };
 globalThis.FileReader = class {
   readAsDataURL(blob) {
@@ -59,10 +59,12 @@ globalThis.FileReader = class {
     });
   }
 };
-const [{ ConfigurationService, DEFAULT_CONFIG, normalizeConfig, normalizeCategories }, icons, { default: ping }] = await Promise.all([
+const [{ ConfigurationService, DEFAULT_CONFIG, normalizeConfig, normalizeCategories }, icons, { default: ping }, { normalizeWebsiteUrl }, { pruneCachedIconsFromChromeStorageLocal }] = await Promise.all([
   loadModule('components/services/ConfigurationService.ts'),
   loadModule('components/utils/iconService.ts'),
   loadModule('components/utils/jsping.ts'),
+  loadModule('components/utils/urlUtils.ts'),
+  loadModule('components/utils/StorageLocalManager.ts'),
 ]);
 const file = value => new File([JSON.stringify(value)], 'config.json', { type: 'application/json' });
 const iconUrl = name => `https://www.google.com/s2/favicons?domain=${name}.com&sz=128`;
@@ -86,6 +88,31 @@ await test('malformed stored data recovers without shared defaults or unsafe pol
   assert.deepEqual(normalizeCategories([null, { id: 'c', name: 'Group', websites: [null, { id: 'w', name: 'Site', url: 'https://example.com', categoryId: 'wrong' }] }])[0].websites[0].categoryId, 'c');
   storage.set('userWallpapers', '{}');
   assert.deepEqual(ConfigurationService.loadUserWallpapers(), []);
+});
+
+await test('website URLs, clock fonts, and wallpaper frequency are normalized', async () => {
+  assert.equal(normalizeWebsiteUrl('github.com'), 'https://github.com/');
+  assert.equal(normalizeWebsiteUrl('localhost:8080/app'), 'https://localhost:8080/app');
+  assert.equal(normalizeWebsiteUrl('mailto:me@example.com'), 'mailto:me@example.com');
+  assert.equal(normalizeWebsiteUrl('javascript:alert(1)'), null);
+  assert.equal(normalizeWebsiteUrl('data:text/html,hi'), null);
+  assert.equal(normalizeWebsiteUrl('   '), null);
+  const websites = normalizeCategories([{ id: 'c', name: 'Group', websites: [
+    { id: 'a', name: 'Bad', url: 'javascript:alert(1)' },
+    { id: 'b', name: 'Bare', url: 'example.com' },
+  ] }])[0].websites;
+  assert.deepEqual(websites.map(website => website.url), ['https://example.com/']);
+  assert.equal(normalizeConfig({ clock: { font: `'Orbitron', sans-serif` } }).clock.font, 'Helvetica');
+  assert.equal(normalizeConfig({ clock: { font: 'monospace' } }).clock.font, 'monospace');
+  assert.equal(normalizeConfig({ wallpaperFrequency: '2d' }).wallpaperFrequency, '48h');
+  assert.equal(normalizeConfig({ wallpaperFrequency: 'weekly' }).wallpaperFrequency, '24h');
+  chromeStorage.clear();
+  chromeStorage.set(`vision-start:icon:${encodeURIComponent(iconUrl('keep'))}`, 'data:image/png;base64,a');
+  chromeStorage.set(`vision-start:icon:${encodeURIComponent(iconUrl('drop'))}`, 'data:image/png;base64,b');
+  chromeStorage.set('My Wallpaper', 'data:image/png;base64,c');
+  assert.equal(await pruneCachedIconsFromChromeStorageLocal([iconUrl('keep')]), 1);
+  assert.deepEqual([...chromeStorage.keys()].sort(), ['My Wallpaper', `vision-start:icon:${encodeURIComponent(iconUrl('keep'))}`].sort());
+  chromeStorage.clear();
 });
 
 await test('imports validate before writing, roll back failures, and preserve omitted settings', async () => {
