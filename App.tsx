@@ -39,6 +39,15 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === 'config' || event.key === null) setConfig(ConfigurationService.loadConfig());
+      if (event.key === 'categories' || event.key === null) setCategories(ConfigurationService.loadCategories());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  useEffect(() => {
     ConfigurationService.saveConfig(config);
   }, [config]);
 
@@ -56,8 +65,18 @@ const App: React.FC = () => {
   }, []);
 
   const handleWallpaperChange = useCallback((newConfig: Partial<Config>) => {
-    setConfig(prev => ({ ...prev, ...newConfig }));
+    setConfig(prev => {
+      const next = newConfig.currentWallpapers;
+      const unchanged = Object.keys(newConfig).length === 1 && next !== undefined
+        && next.length === prev.currentWallpapers.length
+        && next.every((name, index) => name === prev.currentWallpapers[index]);
+      return unchanged ? prev : { ...prev, ...newConfig };
+    });
   }, []);
+
+  const handleToggleEditing = useCallback(() => setIsEditing(editing => !editing), []);
+
+  const handleOpenConfig = useCallback(() => setIsConfigModalOpen(true), []);
 
   const handleRandomWallpaper = useCallback(() => {
     const names = config.currentWallpapers;
@@ -171,8 +190,8 @@ const App: React.FC = () => {
         wallpaperFrequency={config.wallpaperFrequency}
         wallpaperVersion={wallpaperVersion}
       />
-      <EditButton isEditing={isEditing} onClick={() => setIsEditing(!isEditing)} />
-      <ConfigurationButton onClick={() => setIsConfigModalOpen(true)} />
+      <EditButton isEditing={isEditing} onClick={handleToggleEditing} />
+      <ConfigurationButton onClick={handleOpenConfig} />
 
       <Header config={config} />
 
@@ -208,7 +227,7 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {config.serverWidget.enabled && <ServerWidget config={config} />}
+      {config.serverWidget.enabled && <ServerWidget serverWidget={config.serverWidget} />}
 
       {(editingWebsite || addingWebsite) && (
         <Suspense fallback={null}>

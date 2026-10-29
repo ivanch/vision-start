@@ -41,9 +41,8 @@ The design language is **soft liquid glass**: lightly translucent matte surfaces
 - Keep `prefers-reduced-motion` behavior intact when adding animations.
 
 ### Tailwind specifics
-- Tailwind **v4** via `@tailwindcss/vite` and `@tailwindcss/postcss`. Custom easing is in `index.css` under `@theme {}` — add new theme tokens there, not in `tailwind.config.js`.
-- `tailwind.config.js` has a **safelist** of `w-[Npx]/h-[Npx]` classes because tile/icon sizes are constructed dynamically. If you add new pixel-size classes that are generated at runtime (not literally present in source), add them to the safelist or they will be purged.
-- Prefer static classes; only build dynamic class strings when unavoidable and then safelist them.
+- Tailwind **v4** via the `@tailwindcss/vite` plugin only (there is no `tailwind.config.js` or PostCSS config). Custom easing is in `index.css` under `@theme {}` — add new theme tokens there.
+- Tailwind generates only classes it finds literally in source files. Prefer static classes; for sizes computed at runtime use numeric inline styles (as tile icons do), or add an `@source inline(...)` line to `index.css` if a dynamic class is unavoidable.
 
 ### Components with established conventions to reuse
 - `Dropdown` (`components/Dropdown.tsx`) for selects — single or multi. Has a glassy look and custom arrow. **Always use it** instead of `<select>`/`<input type=...>` for option picking.

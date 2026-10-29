@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { baseWallpapers } from './utils/baseWallpapers';
 import { Wallpaper as WallpaperType } from '../types';
 import { getWallpaperFromChromeStorageLocal } from './utils/StorageLocalManager';
@@ -27,9 +27,56 @@ const rememberWallpaperUrl = (name: string, resolved: string | undefined): void 
   }
 };
 
+const MAX_WALLPAPER_OBJECT_URLS = 2;
+const wallpaperObjectUrls = new Map<string, string>();
+
+const revokeWallpaperObjectUrls = (keepNames?: string[]): void => {
+  for (const [name, url] of wallpaperObjectUrls) {
+    if (keepNames?.includes(name)) continue;
+    URL.revokeObjectURL(url);
+    wallpaperObjectUrls.delete(name);
+  }
+};
+
+const rememberWallpaperObjectUrl = (name: string, url: string): string => {
+  const existing = wallpaperObjectUrls.get(name);
+  if (existing) {
+    URL.revokeObjectURL(url);
+    return existing;
+  }
+  wallpaperObjectUrls.set(name, url);
+  while (wallpaperObjectUrls.size > MAX_WALLPAPER_OBJECT_URLS) {
+    const [oldestName, oldestUrl] = wallpaperObjectUrls.entries().next().value ?? [];
+    if (oldestName === undefined || oldestUrl === undefined) break;
+    URL.revokeObjectURL(oldestUrl);
+    wallpaperObjectUrls.delete(oldestName);
+  }
+  return url;
+};
+
+const dataUrlToObjectUrl = (dataUrl: string): string => {
+  const header = dataUrl.match(/^data:([^;,]*)((?:;[^;,]*)*),/);
+  if (!header || typeof URL.createObjectURL !== 'function') return dataUrl;
+  try {
+    const payload = dataUrl.slice(header[0].length);
+    const type = header[1] || 'application/octet-stream';
+    if (!/;base64/i.test(header[2])) {
+      return URL.createObjectURL(new Blob([decodeURIComponent(payload)], { type }));
+    }
+    const binary = atob(payload);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return URL.createObjectURL(new Blob([bytes], { type }));
+  } catch {
+    return dataUrl;
+  }
+};
+
 const getWallpaperUrlByName = async (name: string): Promise<string | undefined> => {
   if (!name) return undefined;
   if (wallpaperUrlCache.has(name)) return wallpaperUrlCache.get(name);
+  const objectUrl = wallpaperObjectUrls.get(name);
+  if (objectUrl) return objectUrl;
 
   let resolved: string | undefined;
   const foundInBase = baseWallpapers.find((w: WallpaperType) => w.name === name);
@@ -56,8 +103,20 @@ const getWallpaperUrlByName = async (name: string): Promise<string | undefined> 
     }
   }
 
+  if (resolved?.startsWith('data:')) {
+    const url = dataUrlToObjectUrl(resolved);
+    return url.startsWith('blob:') ? rememberWallpaperObjectUrl(name, url) : url;
+  }
   rememberWallpaperUrl(name, resolved);
   return resolved;
+};
+
+const getWallpaperFilter = (blur: number, brightness: number): string => {
+  const filters = [
+    blur > 0 ? `blur(${blur}px)` : '',
+    brightness !== 100 ? `brightness(${brightness / 100})` : '',
+  ].filter(Boolean);
+  return filters.length > 0 ? filters.join(' ') : 'none';
 };
 
 const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness, opacity, wallpaperFrequency, wallpaperVersion }) => {
@@ -68,6 +127,7 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
     let timer: ReturnType<typeof setTimeout> | undefined;
     let revision = 0;
     wallpaperUrlCache.clear();
+    revokeWallpaperObjectUrls(wallpaperNames);
 
     const updateWallpaper = async () => {
       const request = ++revision;
@@ -119,6 +179,7 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
     const onStorage = (event: StorageEvent) => {
       if (event.key === 'wallpaperState' || event.key === 'userWallpapers' || event.key === null) {
         wallpaperUrlCache.clear();
+        if (event.key !== 'wallpaperState') revokeWallpaperObjectUrls();
         refresh();
       }
     };
@@ -137,6 +198,8 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
     };
   }, [wallpaperNames, wallpaperFrequency, wallpaperVersion]);
 
+  useEffect(() => () => revokeWallpaperObjectUrls(), []);
+
   if (!imageUrl) return null;
 
   return (
@@ -145,7 +208,8 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
         className="wallpaper-layer wallpaper-transition"
         style={{
           backgroundImage: `url(${JSON.stringify(imageUrl)})`,
-          filter: `blur(${blur}px) brightness(${brightness / 100})`,
+          filter: getWallpaperFilter(blur, brightness),
+          transform: blur > 0 ? 'scale(1.015)' : 'none',
           opacity: opacity / 100,
         }}
         aria-label="Wallpaper background"
@@ -155,4 +219,4 @@ const Wallpaper: React.FC<WallpaperProps> = ({ wallpaperNames, blur, brightness,
   );
 };
 
-export default Wallpaper;
+export default memo(Wallpaper);

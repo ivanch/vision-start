@@ -1,5 +1,4 @@
-
-
+import { memo } from 'react';
 interface ConfigurationButtonProps {
   onClick: () => void;
 }
@@ -21,4 +20,4 @@ const ConfigurationButton: React.FC<ConfigurationButtonProps> = ({ onClick }) =>
   );
 };
 
-export default ConfigurationButton;
+export default memo(ConfigurationButton);

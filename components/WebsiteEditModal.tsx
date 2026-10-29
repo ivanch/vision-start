@@ -21,6 +21,8 @@ interface IconMetadata {
 const getIconPickUrl = (iconData: IconMetadata): string =>
   `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/${iconData.base}/${iconData.name}.${iconData.base}`;
 
+const isIconUrl = (value: string): boolean => /^(https?:|data:image\/)/i.test(value.trim());
+
 const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onClose, onSave, onDelete }) => {
   const [name, setName] = useState(website ? website.name : '');
   const [url, setUrl] = useState(website ? website.url : '');
@@ -28,6 +30,7 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
   const [iconQuery, setIconQuery] = useState('');
   const [filteredIcons, setFilteredIcons] = useState<IconMetadata[]>([]);
   const [iconMetadata, setIconMetadata] = useState<IconMetadata[]>([]);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const metadataRequest = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
 
@@ -105,13 +108,30 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
       alert('Please enter a valid website URL (http, https, ftp, or mailto).');
       return;
     }
-    onSave({ id: website?.id, name: name.trim(), url: normalizedUrl, icon });
+    onSave({ id: website?.id, name: name.trim(), url: normalizedUrl, icon: resolveIcon(icon) });
+  };
+
+  const resolveIcon = (value: string): string => {
+    const trimmed = value.trim();
+    if (!trimmed || isIconUrl(trimmed)) return trimmed;
+    const query = trimmed.toLowerCase();
+    for (const ic of iconMetadata) {
+      if (ic.name.toLowerCase() === query) return getIconPickUrl(ic);
+      const color = ic.colors.find(c => c.toLowerCase() === query);
+      if (color) return getIconPickUrl({ ...ic, name: color });
+    }
+    return trimmed;
+  };
+
+  const updateIcon = (value: string) => {
+    setIcon(value);
+    setPreviewFailed(false);
   };
 
   const fetchIcon = async () => {
     if (url) {
       const fetchedIcon = await getWebsiteIcon(url);
-      setIcon(fetchedIcon);
+      if (fetchedIcon) updateIcon(fetchedIcon);
     }
   };
 
@@ -125,8 +145,8 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
       onDelete={edit ? onDelete : undefined}
     >
       <div className="flex justify-center mb-4">
-        {icon ? (
-          <img src={icon} alt="Website Icon" className="h-24 w-24 object-contain" />
+        {isIconUrl(icon) && !previewFailed ? (
+          <img src={icon.trim()} alt="Website Icon" className="h-24 w-24 object-contain" onError={() => setPreviewFailed(true)} />
         ) : (
           <div className="liquid-surface h-24 w-24 rounded-2xl flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
@@ -158,7 +178,7 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
             placeholder="Icon URL or name"
             value={icon}
             onChange={(e) => {
-              setIcon(e.target.value);
+              updateIcon(e.target.value);
               setIconQuery(e.target.value);
             }}
             onFocus={ensureIconMetadata}
@@ -170,7 +190,7 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
                 <div
                   key={`${iconData.name}-${index}`}
                   onClick={() => {
-                    setIcon(getIconPickUrl(iconData));
+                    updateIcon(getIconPickUrl(iconData));
                     setIconQuery('');
                     setFilteredIcons([]);
                   }}
@@ -179,6 +199,8 @@ const WebsiteEditModal: React.FC<WebsiteEditModalProps> = ({ website, edit, onCl
                   <img
                     src={getIconPickUrl(iconData)}
                     alt={iconData.name}
+                    loading="lazy"
+                    decoding="async"
                     className="h-6 w-6 mr-2"
                   />
                   <span>{iconData.name}</span>

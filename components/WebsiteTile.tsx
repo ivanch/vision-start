@@ -1,6 +1,6 @@
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import { Website } from '../types';
-import { cacheWebsiteIcon, getCachedWebsiteIcon, removeCachedWebsiteIcon } from './utils/iconService';
+import { cacheWebsiteIcon, getCachedWebsiteIcon, getInitialIconSource, removeCachedWebsiteIcon } from './utils/iconService';
 import { getTileSizeClass, getIconPixelSize, getIconLoadingPixelSize } from './utils/styleUtils';
 import { ChevronLeftIcon, ChevronRightIcon, PencilIcon } from './icons';
 
@@ -12,22 +12,33 @@ interface WebsiteTileProps {
   tileSize?: string;
 }
 
+const LOADING_RESET_MS = 10_000;
+
+const isNavigableUrl = (url: string): boolean => /^https?:/i.test(url);
+
 const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, onMove, tileSize }) => {
 
   const [isLoading, setIsLoading] = useState(false);
-  const [iconSource, setIconSource] = useState<string | null>(null);
+  const [iconSource, setIconSource] = useState<string | null | undefined>(() => getInitialIconSource(website.icon));
   const [usingCachedIcon, setUsingCachedIcon] = useState(false);
+  const loadingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    const resetLoading = () => setIsLoading(false);
+    const resetLoading = () => {
+      clearTimeout(loadingTimer.current);
+      setIsLoading(false);
+    };
     window.addEventListener('pageshow', resetLoading);
-    return () => window.removeEventListener('pageshow', resetLoading);
+    return () => {
+      clearTimeout(loadingTimer.current);
+      window.removeEventListener('pageshow', resetLoading);
+    };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    setIconSource(null);
+    setIconSource(getInitialIconSource(website.icon));
     setUsingCachedIcon(false);
 
     const loadIcon = async () => {
@@ -40,7 +51,7 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
         return;
       }
 
-      setIconSource(website.icon);
+      setIconSource(website.icon || null);
       const newlyCachedIcon = await cacheWebsiteIcon(website.icon);
       if (!cancelled && newlyCachedIcon) {
         setIconSource(newlyCachedIcon);
@@ -70,8 +81,10 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
       e.preventDefault();
       return;
     }
-    if (!e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+    if (!e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && isNavigableUrl(website.url)) {
       setIsLoading(true);
+      clearTimeout(loadingTimer.current);
+      loadingTimer.current = setTimeout(() => setIsLoading(false), LOADING_RESET_MS);
     }
   };
 
@@ -105,9 +118,9 @@ const WebsiteTile: React.FC<WebsiteTileProps> = ({ website, isEditing, onEdit, o
                 decoding="async"
                 onError={handleIconError}
               />
-            ) : (
+            ) : iconSource === null ? (
               <span className="text-2xl font-semibold text-slate-300" aria-hidden="true">{website.name.charAt(0).toUpperCase()}</span>
-            )}
+            ) : null}
           </div>
           <span className={`max-w-full px-1 text-slate-50 font-semibold text-base text-center leading-tight transition-all duration-200 ease-ios [text-shadow:0_2px_12px_rgba(2,6,23,0.44)] ${isLoading ? 'text-sm' : ''}`}>
             {website.name}

@@ -17,7 +17,7 @@ const ModalShell: React.FC<ModalShellProps> = ({ title, edit, onClose, onSave, o
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
+      if (e.key === 'Escape' && !e.defaultPrevented) onCloseRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);

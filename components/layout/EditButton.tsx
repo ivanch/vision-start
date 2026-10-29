@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { PencilIcon } from '../icons';
 
 interface EditButtonProps {
@@ -20,4 +21,4 @@ const EditButton: React.FC<EditButtonProps> = ({ isEditing, onClick }) => {
   );
 };
 
-export default EditButton;
+export default memo(EditButton);

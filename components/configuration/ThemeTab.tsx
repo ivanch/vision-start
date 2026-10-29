@@ -184,7 +184,7 @@ const ThemeTab: React.FC<ThemeTabProps> = ({
                   <p className="mb-2 text-sm text-gray-400">
                     <span className="font-semibold">Click to upload</span>
                   </p>
-                  <p className="text-xs text-gray-400">PNG, JPG, WEBP, etc.</p>
+                  <p className="text-xs text-gray-400">PNG, JPG, WEBP, etc. (up to 20MB)</p>
                 </div>
                 <input
                   id="file-upload"

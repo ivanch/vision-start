@@ -28,7 +28,7 @@ Live instances / artifacts:
 | Language | TypeScript (~5.7), target ES2020, strict mode |
 | UI runtime | Preact 10 (via `@preact/preset-vite`); types from `@types/react` 19 |
 | Bundler / dev server | Vite 6 |
-| Styling | Tailwind CSS v4 (`@tailwindcss/vite` plugin + `@tailwindcss/postcss` + `autoprefixer`) |
+| Styling | Tailwind CSS v4 via the `@tailwindcss/vite` plugin only (no `tailwind.config.js` or PostCSS config) |
 | Drag & drop | `@hello-pangea/dnd` 18 |
 | Build output | Plain static files in `dist/` (relative `base: './'`, single CSS bundle; modals code-split into separate JS chunks via `React.lazy`) |
 | Container | Node 22 Alpine build stage → nginx Alpine serving `dist/` |
@@ -51,24 +51,29 @@ The startpage is composed of widgets and a configuration panel:
 - **Server Status Widget** — Bottom-center glass pill that periodically "pings" configured server addresses and shows online/offline indicators. Probes use cancellable, credential-free HTTP HEAD requests with a 5s timeout. Online means the browser received a response; cross-origin HTTP status codes are opaque, so this is reachability rather than an HTTP health check. Network failures, timeouts, and browser-blocked requests appear offline.
 - **Wallpaper background** — Fullscreen background image with adjustable blur, brightness, and opacity, rendered behind a soft readability layer for the liquid-glass UI. Randomly rotates through multiple wallpapers at an hourly cadence selected by slider (`1h`–`48h`).
   - Built-in wallpapers: Abstract, Abstract Red, Beach, Dark, Mountain, Waves (`components/utils/baseWallpapers.ts`).
-  - User wallpapers: upload from a file (≤4MB, ≤4.5MB base64) or add by URL. Remote URLs remain lightweight entries in the `userWallpapers` index; uploaded image data is stored in `chrome.storage.local` when available.
+  - User wallpapers: upload from a file (≤20MB source; non-GIF/SVG images are downscaled to a long edge between 1920px and 2560px depending on the screen and re-encoded as WebP when smaller; ≤4.5MB stored base64) or add by URL. Remote URLs remain lightweight entries in the `userWallpapers` index; uploaded image data is stored in `chrome.storage.local` when available.
 - **Icon library, auto-fetch & cache** — Website icons can be picked from the [Dashboard Icons](https://dashboardicons.com/) library (metadata pre-downloaded to `public/icon-metadata.json`) or auto-fetched for trusted public TLDs as a Google S2 favicon URL derived from the site's hostname (no HTML fetching — the S2 URL is used purely as an `<img>` source). Non-trusted TLDs (e.g. local TLDs, IP addresses) fetch `${origin}/favicon.ico` directly. Tiles opportunistically cache CORS-readable icon responses as data URLs in `chrome.storage.local` and retain the original URL when caching is unavailable. Cache population fetches trusted TLDs through a CORS-open favicon service (`icon.horse`) because Google's S2 endpoint 301-redirects without `Access-Control-Allow-Origin`, which would block cross-origin `fetch`.
 - **Configuration panel** — Slide-in right-side modal with four tabs: General, Theme, Clock, Server Widget. Includes **Export** (downloads a JSON bundle of selected `localStorage` keys) and **Import** (restores from JSON and reloads the page).
-- **Edit mode** — Toggle via the top-left pencil button; reveals per-tile glass action toolbars, per-category edit buttons, and ghost glass "add" tiles. Add/edit modals disable Save until required fields are filled, and website URLs without a scheme get `https://` (only `http`, `https`, `ftp`, `mailto` are accepted). Deleting a category that has websites, or an uploaded wallpaper, asks for confirmation first. All modals close with Escape.
+- **Edit mode** — Toggle via the top-left pencil button; reveals per-tile glass action toolbars, per-category edit buttons, and ghost glass "add" tiles. Add/edit modals disable Save until required fields are filled, and website URLs without a scheme get `https://` (only `http`, `https`, `ftp`, `mailto` are accepted). Deleting a category that has websites, or an uploaded wallpaper, asks for confirmation first. All modals close with Escape (an open `Dropdown` consumes Escape first). The navigation spinner only appears for `http(s)` links and resets after 10s.
+- **Cross-tab sync** — `App.tsx` listens for `storage` events on `config` and `categories` and reloads normalized state, so an older open tab never overwrites edits made in another tab.
 - **Liquid glass design language** — Soft translucent surfaces, restrained edge highlights, moderate backdrop blur, soft shadows, cyan focus states, and iOS-like easing tokens (`ease-ios`, `ease-spring`, `ease-liquid`) defined in `index.css`.
 
 Performance notes:
-- Website tile icons check a deterministic `vision-start:icon:<encoded-source-url>` entry in `chrome.storage.local` before loading the external URL. Cache population fetches Google S2 favicon URLs for trusted public TLDs through `https://icon.horse/icon/<host>` (a CORS-open favicon service), while non-trusted TLDs and direct icon URLs render directly in `<img>` tags without triggering background `fetch` calls. It deduplicates in-flight requests, stores only `image/*` responses up to 256KiB, and never intercepts or proxies outside requests.
+- Website tile icons check a deterministic `vision-start:icon:<encoded-source-url>` entry in `chrome.storage.local` before loading the external URL. Lookups made in the same tick are batched into one `chrome.storage.local.get`, and tiles render an empty icon box (not the fallback initial) while the lookup is pending. Cache population fetches Google S2 favicon URLs for trusted public TLDs through `https://icon.horse/icon/<host>` (a CORS-open favicon service), while non-trusted TLDs and direct icon URLs render directly in `<img>` tags without triggering background `fetch` calls. It deduplicates in-flight requests, stores only `image/*` responses up to 256KiB, and never intercepts or proxies outside requests.
 - Modals (`ConfigurationModal`, `WebsiteEditModal`, `CategoryEditModal`) are code-split via `React.lazy` + `Suspense` and only loaded when opened. `ServerWidgetTab` is independently lazy-loaded, so its `@hello-pangea/dnd` dependency is loaded only when the Server Widget settings tab is selected. `WebsiteEditModal` and `CategoryEditModal` share a common `ModalShell` component.
 - `WebsiteTile` and `CategoryGroup` are wrapped in `React.memo`; `App.tsx` handlers are `useCallback`-stabilized and pure alignment helpers are hoisted to module scope, so opening a modal / toggling edit no longer re-renders every tile.
 - `Clock` schedules one timeout for the next minute boundary, pauses while hidden, and refreshes immediately on focus or visibility return.
 - `jsping` parses addresses with the shared `parseServerAddress` (also used to validate new servers in the settings tab), uses HTTP HEAD without downloading or decoding probe images, propagates failures, and cleans up its timeout and abort listener.
 - `ServerWidget` runs at most four probes concurrently, batches completed results into one state update, avoids overlapping polling cycles, cancels work when hidden or unmounted, and depends on a stable ids/addresses signature. Hidden tabs stop polling and refresh on visibility return; removed servers leave no retained status entries.
+- The icon picker only previews `http(s)`/`data:image` values (typed names never trigger relative-URL requests), lazy-loads result images, and resolves an exactly matching icon name to its Dashboard Icons URL on save. The Fetch button ignores non-`http(s)` website URLs.
 - Icon metadata (`/icon-metadata.json`) is fetched lazily on first focus of the icon field with `cache: 'force-cache'`, filter debounced ~150ms, and color variants are expanded lazily during filtering rather than upfront. Only names, file formats, and color variants are retained in component state; requests are aborted on close, failed loads can retry, and metadata URLs resolve relative to the page so subdirectory deployments work (the browser HTTP cache makes reopening cheap), and the dashboard-icon URL for a picker entry is derived from one shared helper.
 - `Wallpaper` resolves remote wallpaper URLs through a module-level `Map` bounded to the last 3 entries. Uploaded data URLs are excluded from that cache, and the cache clears on unmount; its image transition and readability overlay classes live in `index.css`. Wallpaper rotation and frequency parsing (`h`/`d` → hours/ms) share helpers with the Theme tab via `components/utils/wallpaperUtils.ts`.
 - The website icon service bounds its extra resolved data-URL cache to 50 entries and 2MiB of string storage (conservatively counted at two bytes per character). Cache downloads run at most four at a time, with at most 50 outstanding requests and an 8s timeout. Streaming reads stop at 256KiB before decoding; invalid or oversized persisted entries are discarded. Tile images still retain the data they display, separate from this extra cache.
 - Tile icon dimensions use numeric inline styles, independent of generated Tailwind classes. Failed icons show the website initial, modified link clicks avoid navigation spinners, and browser history restoration clears the loading state. Category mutations preserve unaffected object references and use stable functional state handlers. Shared IDs use UUIDs with a fallback for ordinary HTTP deployments.
-- Permanent `will-change` hints are removed from tiles and wallpaper so the browser chooses when to allocate compositing layers.
+- Permanent `will-change` hints are removed from tiles and wallpaper so the browser chooses when to allocate compositing layers. The wallpaper only applies `blur()`/`brightness()` filters and the edge-hiding `scale(1.015)` when they are not neutral.
+- Uploaded wallpaper data URLs are converted once into `blob:` object URLs (at most two kept, revoked on deselection, cross-tab `userWallpapers` changes, and unmount), so focus/visibility refreshes do not re-read multi-MB base64 from storage and inline styles stay small.
+- `Wallpaper`, `Header`, `ServerWidget`, `EditButton`, and `ConfigurationButton` are memoized; `Clock` stores a minute key so duplicate focus/visibility refreshes do not re-render; `Dropdown` attaches document listeners only while open.
+- Startup icon-cache pruning lists keys with `chrome.storage.local.getKeys()` (Chrome 130+) instead of loading every stored value, falling back to `get(null)` on older browsers.
 - Shared styling/frequency helpers live in `components/utils/styleUtils.ts` (tile/clock/title size classes, icon pixel sizes, alignment classes, size presets), `wallpaperUtils.ts`, and `urlUtils.ts` (URL→filename extraction, also used by wallpaper storage). Range sliders use the shared `RangeSlider` component; repeated glyphs (pencil, plus, trash, chevrons) use `components/icons.tsx`.
 
 Planned / To-do (tracked in `README.md`):
@@ -149,8 +154,6 @@ vision-start/
 ├── nginx.conf                    # nginx gzip config (JSON/JS/CSS/SVG/XML), mounted into container
 ├── .dockerignore
 ├── .gitignore                    # Ignores node_modules, dist, .claude/, public/icon-metadata.json, etc.
-├── postcss.config.cjs            # @tailwindcss/postcss + autoprefixer
-├── tailwind.config.js            # Content globs + legacy pixel-size safelist
 ├── tsconfig.json                 # Strict TS, bundler resolution, `@/*` path alias to project root
 ├── vite.config.ts                # preact + tailwindcss plugins; single-bundle output; base './'
 ├── package.json                  # Scripts: dev, build, preview, typecheck, test, capture:screenshots
@@ -220,7 +223,7 @@ npm test          # scripts/check_regressions.mjs; run after building; isolated 
 npm audit         # Audit the locked dependency tree
 ```
 
-The regression script covers malformed persisted data, website URL/clock font/wallpaper frequency normalization, icon cache pruning, partial/legacy imports and quota rollback, wallpaper validation, server probe failure/timeout/cancellation, icon request concurrency/stream limits/cache eviction, hidden-tab clock and polling behavior, modal request cancellation and retained JS heap after repeated picker cycles, lazy settings chunks, and loading an unpacked Manifest V3 extension in an isolated Chromium profile. It uses existing Vite/Playwright dependencies and does not modify the normal browser profile or shipped metadata.
+The regression script covers malformed persisted data, website URL/clock font/wallpaper frequency normalization, icon cache pruning (including the `getKeys` path), Fetch-icon URL derivation, batched icon lookups, cross-tab category sync, partial/legacy imports and quota rollback, wallpaper validation, server probe failure/timeout/cancellation, icon request concurrency/stream limits/cache eviction, hidden-tab clock and polling behavior, modal request cancellation and retained JS heap after repeated picker cycles, lazy settings chunks, and loading an unpacked Manifest V3 extension in an isolated Chromium profile. It uses existing Vite/Playwright dependencies and does not modify the normal browser profile or shipped metadata.
 
 ### Chrome extension install (manual)
 Build, then combine `dist/` + `manifest.json` into a folder and "Load unpacked" from `chrome://extensions`. The release workflow automates this zip.
@@ -253,7 +256,7 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 - **Icon picker** in `WebsiteEditModal` loads page-relative `icon-metadata.json` on focus, validates the response, and lazily expands color variants into up to 50 searchable results. Closing it cancels metadata fetching and filtering timers.
 - **Website icon cache** is persistent only in `chrome.storage.local`; it is rebuilt from website icon URLs after configuration import. Only `image/*` responses no larger than 256KiB are cached. Trusted public TLDs use Google S2 and the CORS-open `icon.horse` service for favicon caching, while non-trusted TLDs (local TLDs, IP addresses, custom domains) fetch `${origin}/favicon.ico` directly. No site HTML is ever fetched for icon discovery.
 - **`tsconfig.json` does not emit JS** (`noEmit: true`, bundler resolution); Vite handles all transpilation.
-- **Tile/icon sizing** uses static tile classes and numeric inline icon dimensions. The legacy pixel-size safelist remains in `tailwind.config.js`, but tile icons no longer depend on it.
+- **Tile/icon sizing** uses static tile classes and numeric inline icon dimensions. Tailwind v4 only generates classes found literally in source; there is no safelist.
 - **Project guidance note** in `AGENTS.md`: do not use `npm run dev` for real verification — use `npm run build`.
 - **`.claude/` and `.env.local`** are local-only / gitignored; not part of shipped artifacts.
 
@@ -283,4 +286,4 @@ External assets fetched at build time by `scripts/prepare_release.sh`:
 
 ---
 
-_Last updated: 2026-10-10. Generated as a general project overview; not a coding-style guide._
+_Last updated: 2026-10-28. Generated as a general project overview; not a coding-style guide._

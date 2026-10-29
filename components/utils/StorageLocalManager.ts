@@ -8,6 +8,7 @@ declare global {
         local?: {
           set: (items: object, callback?: () => void) => void;
           get: (keys: string[] | string | null, callback: (items: { [key: string]: string }) => void) => void;
+          getKeys?: (callback: (keys: string[]) => void) => void;
           remove: (keys: string | string[], callback?: () => void) => void;
         };
       };
@@ -57,17 +58,36 @@ const chromeLocalCall = <T>(
     });
   });
 
-export async function getCachedIconFromChromeStorageLocal(sourceUrl: string): Promise<string | null> {
-  if (!checkChromeStorageLocalAvailable()) return null;
+let pendingIconLookups: Map<string, ((value: string | null) => void)[]> | null = null;
+
+const flushIconLookups = async (): Promise<void> => {
+  const lookups = pendingIconLookups;
+  pendingIconLookups = null;
+  if (!lookups) return;
+  let result: StorageResult = {};
   try {
-    const key = getIconCacheKey(sourceUrl);
-    const result = await chromeLocalCall<StorageResult>((cb) =>
-      window.chrome?.storage?.local?.get([key], cb),
+    result = await chromeLocalCall<StorageResult>((cb) =>
+      window.chrome?.storage?.local?.get([...lookups.keys()], cb),
     );
-    return result[key] || null;
   } catch {
-    return null;
+    result = {};
   }
+  for (const [key, resolvers] of lookups) {
+    const value = typeof result[key] === 'string' ? result[key] || null : null;
+    resolvers.forEach(resolve => resolve(value));
+  }
+};
+
+export function getCachedIconFromChromeStorageLocal(sourceUrl: string): Promise<string | null> {
+  if (!checkChromeStorageLocalAvailable()) return Promise.resolve(null);
+  return new Promise(resolve => {
+    if (!pendingIconLookups) {
+      pendingIconLookups = new Map();
+      queueMicrotask(() => void flushIconLookups());
+    }
+    const key = getIconCacheKey(sourceUrl);
+    pendingIconLookups.set(key, [...(pendingIconLookups.get(key) ?? []), resolve]);
+  });
 }
 
 export async function saveCachedIconToChromeStorageLocal(sourceUrl: string, dataUrl: string): Promise<boolean> {
@@ -98,10 +118,11 @@ export async function pruneCachedIconsFromChromeStorageLocal(keepSourceUrls: str
   if (!checkChromeStorageLocalAvailable()) return 0;
   try {
     const keep = new Set(keepSourceUrls.map(getIconCacheKey));
-    const items = await chromeLocalCall<StorageResult>((cb) =>
-      window.chrome?.storage?.local?.get(null, cb),
-    );
-    const stale = Object.keys(items).filter(key => key.startsWith(ICON_CACHE_KEY_PREFIX) && !keep.has(key));
+    const local = window.chrome?.storage?.local;
+    const keys = local?.getKeys
+      ? await chromeLocalCall<string[]>((cb) => local.getKeys?.(cb))
+      : Object.keys(await chromeLocalCall<StorageResult>((cb) => local?.get(null, cb)));
+    const stale = keys.filter(key => key.startsWith(ICON_CACHE_KEY_PREFIX) && !keep.has(key));
     if (stale.length === 0) return 0;
     await chromeLocalCall<void>((cb) =>
       window.chrome?.storage?.local?.remove(stale, cb),

@@ -1,14 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import { Server } from '../types';
 import ping from './utils/jsping';
 
 interface ServerWidgetProps {
-  config: {
-    serverWidget: {
-      enabled: boolean;
-      pingFrequency: number;
-      servers: Server[];
-    };
+  serverWidget: {
+    enabled: boolean;
+    pingFrequency: number;
+    servers: Server[];
   };
 }
 
@@ -20,20 +18,20 @@ const STATUS_COLORS: Record<string, string> = {
 const getStatusColor = (status: string): string =>
   STATUS_COLORS[status] ?? 'bg-slate-400 text-slate-400';
 
-const ServerWidget: React.FC<ServerWidgetProps> = ({ config }) => {
+const ServerWidget: React.FC<ServerWidgetProps> = ({ serverWidget }) => {
   const [serverStatus, setServerStatus] = useState<Record<string, string>>({});
-  const serversRef = useRef(config.serverWidget.servers);
-  serversRef.current = config.serverWidget.servers;
+  const serversRef = useRef(serverWidget.servers);
+  serversRef.current = serverWidget.servers;
 
-  const serversSignature = JSON.stringify(config.serverWidget.servers.map(s => [s.id, s.address]));
+  const serversSignature = JSON.stringify(serverWidget.servers.map(s => [s.id, s.address]));
 
   useEffect(() => {
-    if (!config.serverWidget.enabled || serversRef.current.length === 0) return;
+    if (!serverWidget.enabled || serversRef.current.length === 0) return;
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     let controller: AbortController | undefined;
     let cancelled = false;
-    const frequency = Math.min(60, Math.max(5, config.serverWidget.pingFrequency || 15)) * 1000;
+    const frequency = Math.min(60, Math.max(5, serverWidget.pingFrequency || 15)) * 1000;
     setServerStatus(Object.fromEntries(serversRef.current.map(server => [server.id, 'pending'])));
 
     const pingServers = async () => {
@@ -74,19 +72,19 @@ const ServerWidget: React.FC<ServerWidgetProps> = ({ config }) => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [
-    config.serverWidget.enabled,
-    config.serverWidget.pingFrequency,
+    serverWidget.enabled,
+    serverWidget.pingFrequency,
     serversSignature,
   ]);
 
-  if (!config.serverWidget.enabled) {
+  if (!serverWidget.enabled) {
     return null;
   }
 
   return (
     <div className="fixed bottom-3 left-1/2 z-20 w-auto max-w-[calc(100%-1.5rem)] -translate-x-1/2">
       <div className="liquid-surface flex items-center gap-4 rounded-full px-4 py-2">
-        {config.serverWidget.servers.map((server) => (
+        {serverWidget.servers.map((server) => (
           <div key={server.id} className="flex items-center gap-2">
             <div className={`liquid-status-dot w-2.5 h-2.5 rounded-full ${getStatusColor(serverStatus[server.id])}`}></div>
             <span className="text-slate-100 text-sm font-medium">
@@ -99,4 +97,4 @@ const ServerWidget: React.FC<ServerWidgetProps> = ({ config }) => {
   );
 };
 
-export default ServerWidget;
+export default memo(ServerWidget);

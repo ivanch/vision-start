@@ -112,7 +112,18 @@ await test('website URLs, clock fonts, and wallpaper frequency are normalized', 
   chromeStorage.set('My Wallpaper', 'data:image/png;base64,c');
   assert.equal(await pruneCachedIconsFromChromeStorageLocal([iconUrl('keep')]), 1);
   assert.deepEqual([...chromeStorage.keys()].sort(), ['My Wallpaper', `vision-start:icon:${encodeURIComponent(iconUrl('keep'))}`].sort());
+  chromeStorage.set(`vision-start:icon:${encodeURIComponent(iconUrl('stale'))}`, 'data:image/png;base64,d');
+  window.chrome.storage.local.getKeys = callback => callback([...chromeStorage.keys()]);
+  try {
+    const reads = chromeReads;
+    assert.equal(await pruneCachedIconsFromChromeStorageLocal([iconUrl('keep')]), 1);
+    assert.equal(chromeReads, reads, 'Pruning must list keys without reading stored values');
+    assert(chromeStorage.has('My Wallpaper'));
+  } finally { delete window.chrome.storage.local.getKeys; }
   chromeStorage.clear();
+  assert.equal(await icons.getWebsiteIcon('mailto:me@example.com'), '');
+  assert.equal(await icons.getWebsiteIcon('github.com'), 'https://www.google.com/s2/favicons?domain=github.com&sz=128');
+  assert.equal(await icons.getWebsiteIcon('192.168.1.10:8080'), 'http://192.168.1.10:8080/favicon.ico');
 });
 
 await test('imports validate before writing, roll back failures, and preserve omitted settings', async () => {
@@ -191,6 +202,9 @@ await test('icon requests deduplicate, cap concurrency, reject oversized streams
     const reads = chromeReads;
     await icons.getCachedWebsiteIcon(iconUrl('site0'));
     assert(chromeReads > reads, 'The oldest large icon must leave the extra memory cache');
+    const batchReads = chromeReads;
+    await Promise.all(['batch-a', 'batch-b', 'batch-c'].map(name => icons.getCachedWebsiteIcon(iconUrl(name))));
+    assert.equal(chromeReads - batchReads, 1, 'Icon cache lookups in one tick must share one storage read');
     const before = requests;
     await Promise.all([icons.cacheWebsiteIcon(iconUrl('shared')), icons.cacheWebsiteIcon(iconUrl('shared'))]);
     assert.equal(requests - before, 1);
@@ -269,6 +283,15 @@ await test('production UI survives malformed data, distinguishes server status, 
     await page.getByRole('button', { name: 'Edit page' }).click();
     await page.getByRole('button', { name: 'Move Beta left' }).click();
     assert.deepEqual(await page.locator('a[aria-label$="edit controls"]').evaluateAll(links => links.map(link => [...link.querySelectorAll('span')].at(-1).textContent)), ['Beta', 'Alpha']);
+    await page.clock.runFor(100);
+    await page.evaluate(() => {
+      const categories = JSON.parse(localStorage.getItem('categories'));
+      categories[0].websites.push({ id: 'g', name: 'Gamma', url: 'https://example.net', icon: '', categoryId: categories[0].id });
+      localStorage.setItem('categories', JSON.stringify(categories));
+      window.dispatchEvent(new StorageEvent('storage', { key: 'categories' }));
+    });
+    await page.locator('a[aria-label="Gamma edit controls"]').waitFor();
+    assert.deepEqual(await page.locator('a[aria-label$="edit controls"]').evaluateAll(links => links.map(link => [...link.querySelectorAll('span')].at(-1).textContent)), ['Beta', 'Alpha', 'Gamma']);
     const openPicker = async () => {
       await page.getByRole('button', { name: 'Edit Alpha', exact: true }).click();
       const input = page.getByPlaceholder('Icon URL or name');
@@ -290,6 +313,7 @@ await test('production UI survives malformed data, distinguishes server status, 
     const growth = (await heap()) - before;
     assert(growth < 2 * 1024 * 1024, `Retained JS heap grew by ${growth} bytes`);
     assert.equal(metadataLoads, 16);
+    assert(!downloaded.some(url => url === `${baseUrl}/service`), 'Typing an icon name must not request it as a relative URL');
     await page.evaluate(() => {
       const original = window.fetch;
       window.fetch = (url, options) => {

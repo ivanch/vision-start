@@ -138,6 +138,50 @@ export const normalizeUserWallpapers = (stored: unknown): Wallpaper[] => {
   });
 };
 
+const MAX_WALLPAPER_SOURCE_BYTES = 20 * 1024 * 1024;
+const MAX_WALLPAPER_DATA_URL_LENGTH = 4.5 * 1024 * 1024;
+const MIN_WALLPAPER_EDGE = 1920;
+const MAX_WALLPAPER_EDGE = 2560;
+
+const readFileAsDataUrl = (file: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('Could not read the image file.'));
+    };
+    reader.onerror = () => reject(reader.error || new Error('Could not read the image file.'));
+    reader.readAsDataURL(file);
+  });
+
+const downscaleWallpaper = async (file: File): Promise<Blob> => {
+  if (typeof createImageBitmap !== 'function' || typeof document === 'undefined' || file.type === 'image/gif' || file.type === 'image/svg+xml') {
+    return file;
+  }
+  try {
+    const bitmap = await createImageBitmap(file);
+    try {
+      const screenEdge = Math.max(window.screen?.width ?? 0, window.screen?.height ?? 0) * (window.devicePixelRatio || 1);
+      const maxEdge = Math.min(MAX_WALLPAPER_EDGE, Math.max(MIN_WALLPAPER_EDGE, screenEdge));
+      const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) return file;
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/webp', 0.85));
+      canvas.width = 0;
+      canvas.height = 0;
+      return blob && blob.type === 'image/webp' && blob.size < file.size ? blob : file;
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return file;
+  }
+};
+
 const assertWallpaperNameAvailable = (name: string): void => {
   const names = [...baseWallpapers, ...ConfigurationService.loadUserWallpapers()];
   if (name.startsWith('vision-start:icon:') || names.some(wallpaper => wallpaper.name === name)) {
@@ -208,29 +252,16 @@ export const ConfigurationService = {
   async addWallpaperFile(file: File): Promise<Wallpaper> {
     if (!file.type.startsWith('image/')) throw new Error('Please choose an image file.');
     assertWallpaperNameAvailable(file.name.trim());
-    return new Promise((resolve, reject) => {
-      if (file.size > 4 * 1024 * 1024) {
-        reject(new Error('File size exceeds 4MB. Please choose a smaller file.'));
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result as string;
-        if (base64.length > 4.5 * 1024 * 1024) {
-          reject(new Error('The uploaded image is too large. Please choose a smaller file.'));
-          return;
-        }
-        try {
-          assertWallpaperNameAvailable(file.name.trim());
-          const finalName = await addWallpaperToChromeStorageLocal(file.name, base64);
-          resolve({ name: finalName });
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    if (file.size > MAX_WALLPAPER_SOURCE_BYTES) {
+      throw new Error('File size exceeds 20MB. Please choose a smaller file.');
+    }
+    const base64 = await readFileAsDataUrl(await downscaleWallpaper(file));
+    if (base64.length > MAX_WALLPAPER_DATA_URL_LENGTH) {
+      throw new Error('The uploaded image is too large. Please choose a smaller file.');
+    }
+    assertWallpaperNameAvailable(file.name.trim());
+    const finalName = await addWallpaperToChromeStorageLocal(file.name, base64);
+    return { name: finalName };
   },
 
   async deleteWallpaper(wallpaper: Wallpaper): Promise<void> {
@@ -260,7 +291,7 @@ export const ConfigurationService = {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   },
 
   async importConfig(file: File): Promise<{ config: Config; userWallpapers: Wallpaper[] }> {

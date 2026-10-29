@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import Clock from '../Clock';
 import { Config } from '../../types';
 import { getTitleSizeClass } from '../utils/styleUtils';
@@ -29,4 +30,4 @@ const Header: React.FC<HeaderProps> = ({ config }) => {
   );
 };
 
-export default Header;
+export default memo(Header);

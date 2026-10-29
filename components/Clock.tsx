@@ -12,8 +12,10 @@ interface ClockProps {
   };
 }
 
+const getMinuteKey = (date: Date): number => Math.floor(date.getTime() / 60_000);
+
 const Clock: React.FC<ClockProps> = ({ config }) => {
-  const [time, setTime] = useState(new Date());
+  const [minuteKey, setMinuteKey] = useState(() => getMinuteKey(new Date()));
 
   useEffect(() => {
     if (!config.clock.enabled) return;
@@ -23,7 +25,7 @@ const Clock: React.FC<ClockProps> = ({ config }) => {
       window.clearTimeout(timeoutId);
       if (document.visibilityState !== 'visible') return;
       const now = new Date();
-      setTime(now);
+      setMinuteKey(getMinuteKey(now));
       const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
       timeoutId = window.setTimeout(refresh, msToNextMinute);
     };
@@ -62,7 +64,7 @@ const Clock: React.FC<ClockProps> = ({ config }) => {
         fontFamily: config.clock.font,
       }}
     >
-      {formatTime(time)}
+      {formatTime(new Date(minuteKey * 60_000))}
     </div>
   );
 };

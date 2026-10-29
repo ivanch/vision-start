@@ -4,6 +4,7 @@ import {
   removeCachedIconFromChromeStorageLocal,
   saveCachedIconToChromeStorageLocal,
 } from './StorageLocalManager';
+import { normalizeWebsiteUrl } from './urlUtils';
 
 const MAX_CACHED_ICON_BYTES = 256 * 1024;
 const MAX_RESOLVED_ICONS = 50;
@@ -138,20 +139,25 @@ const getIconFetchSource = (iconUrl: string): string | null => {
 async function getWebsiteIcon(rawUrl: string): Promise<string> {
   const trimmed = rawUrl.trim();
   const hasProtocol = /^https?:\/\//i.test(trimmed);
-  const targetUrl = hasProtocol ? trimmed : `https://${trimmed}`;
-
-  try {
-    const parsed = new URL(targetUrl);
-    if (!isTrustedTld(parsed.hostname)) {
-      if (!hasProtocol) {
-        return `http://${parsed.host}/favicon.ico`;
-      }
-      return `${parsed.origin}/favicon.ico`;
+  const normalized = normalizeWebsiteUrl(trimmed);
+  if (!normalized) return '';
+  const parsed = new URL(normalized);
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+  if (!isTrustedTld(parsed.hostname)) {
+    if (!hasProtocol) {
+      return `http://${parsed.host}/favicon.ico`;
     }
-    return `https://www.google.com/s2/favicons?domain=${parsed.hostname}&sz=128`;
-  } catch {
-    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(rawUrl)}&sz=128`;
+    return `${parsed.origin}/favicon.ico`;
   }
+  return `https://www.google.com/s2/favicons?domain=${parsed.hostname}&sz=128`;
+}
+
+function getInitialIconSource(iconUrl: string): string | null | undefined {
+  if (!iconUrl) return null;
+  if (isDataUrl(iconUrl)) return iconUrl;
+  const inMemoryIcon = resolvedIconCache.get(iconUrl);
+  if (inMemoryIcon) return inMemoryIcon;
+  return isCacheableIconUrl(iconUrl) && checkChromeStorageLocalAvailable() ? undefined : iconUrl;
 }
 
 async function getCachedWebsiteIcon(iconUrl: string): Promise<string | null> {
@@ -245,6 +251,7 @@ async function removeCachedWebsiteIcon(iconUrl: string): Promise<void> {
 export {
   cacheWebsiteIcon,
   getCachedWebsiteIcon,
+  getInitialIconSource,
   getWebsiteIcon,
   removeCachedWebsiteIcon,
 };
